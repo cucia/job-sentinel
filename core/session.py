@@ -24,6 +24,11 @@ def ensure_session(settings: dict, platform: str, login_url: str) -> str:
     if os.path.exists(session_path):
         return session_path
 
+    headless = settings.get("app", {}).get("headless", False)
+    if headless and not os.environ.get("DISPLAY"):
+        log(f"No session for {platform} and headless mode enabled. Skipping login.")
+        return ""
+
     log(f"No session found for {platform}. Opening login page...")
 
     playwright, browser, context = open_context(headless=False)
