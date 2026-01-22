@@ -1,5 +1,5 @@
 app:
-  headless: false
+  headless: true
   run_interval_seconds: 300
   resume_path: resumes/resume.pdf
 
@@ -33,3 +33,17 @@ platforms:
   sessions:
     linkedin: sessions/linkedin.json
     naukri: sessions/naukri.json
+  linkedin:
+    search:
+      keywords:
+        - cybersecurity
+        - soc analyst
+      location: India
+      max_results: 10
+  naukri:
+    search:
+      keywords:
+        - cybersecurity
+        - soc analyst
+      location: India
+      max_results: 10

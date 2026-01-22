@@ -21,11 +21,14 @@ def collect_jobs(settings: dict, profile: dict) -> list:
     if not keywords:
         return []
 
-    ensure_session(settings, "linkedin", "https://www.linkedin.com/login")
+    session_path = ensure_session(settings, "linkedin", "https://www.linkedin.com/login")
 
     headless = settings.get("app", {}).get("headless", False)
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    session_path = get_session_path(base_dir, settings, "linkedin")
+    if not session_path:
+        session_path = get_session_path(base_dir, settings, "linkedin")
+        if not os.path.exists(session_path):
+            return []
 
     query = quote_plus(" ".join(keywords))
     loc = quote_plus(location) if location else ""

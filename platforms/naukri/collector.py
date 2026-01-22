@@ -21,11 +21,14 @@ def collect_jobs(settings: dict, profile: dict) -> list:
     if not keywords:
         return []
 
-    ensure_session(settings, "naukri", "https://www.naukri.com/nlogin/login")
+    session_path = ensure_session(settings, "naukri", "https://www.naukri.com/nlogin/login")
 
     headless = settings.get("app", {}).get("headless", False)
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    session_path = get_session_path(base_dir, settings, "naukri")
+    if not session_path:
+        session_path = get_session_path(base_dir, settings, "naukri")
+        if not os.path.exists(session_path):
+            return []
 
     query = "-".join([quote_plus(k).replace("+", "-") for k in keywords])
     loc = quote_plus(location) if location else ""
