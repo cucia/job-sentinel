@@ -1,8 +1,35 @@
 app:
-  # TODO: add runtime settings
+  headless: false
+  run_interval_seconds: 300
+  resume_path: resumes/resume.pdf
+
+storage:
+  db_path: data/jobsentinel.db
+
+limits:
+  daily_applications: 10
+
+policy:
+  allowed_roles:
+    - cybersecurity
+    - soc
+    - security analyst
+  required_skills:
+    - linux
+    - networking
+  blocked_keywords:
+    - senior
+    - lead
+    - manager
 
 ai:
-  # TODO: add AI settings
+  min_score: 70
+  uncertainty_margin: 5
 
 platforms:
-  # TODO: add platform settings
+  enabled:
+    - linkedin
+    - naukri
+  sessions:
+    linkedin: sessions/linkedin.json
+    naukri: sessions/naukri.json
