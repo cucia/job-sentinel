@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime data
+sessions/
+data/
+resumes/
+
+# Logs
+*.log

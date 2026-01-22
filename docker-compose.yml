@@ -1,0 +1,8 @@
+services:
+  jobsentinel:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./sessions:/app/sessions
+      - ./data:/app/data
