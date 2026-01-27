@@ -1,8 +1,31 @@
 services:
-  jobsentinel:
+  jobsentinel-linkedin:
     build: .
+    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "core.controller", "--platforms", "linkedin"]
     env_file:
       - .env
+    environment:
+      - JOBSENTINEL_PLATFORMS=linkedin
+    volumes:
+      - ./sessions:/app/sessions
+      - ./data:/app/data
+  jobsentinel-naukri:
+    build: .
+    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "core.controller", "--platforms", "naukri"]
+    env_file:
+      - .env
+    environment:
+      - JOBSENTINEL_PLATFORMS=naukri
+    volumes:
+      - ./sessions:/app/sessions
+      - ./data:/app/data
+  jobsentinel-indeed:
+    build: .
+    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "core.controller", "--platforms", "indeed"]
+    env_file:
+      - .env
+    environment:
+      - JOBSENTINEL_PLATFORMS=indeed
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
@@ -14,5 +37,6 @@ services:
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "5000:5000"

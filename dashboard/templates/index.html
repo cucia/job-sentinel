@@ -35,12 +35,51 @@
             <span class="control-state">{{ 'on' if platform_enabled.linkedin else 'off' }}</span>
           </button>
         </form>
+        <form method="post" action="/toggle/platform/indeed">
+          <button class="control-toggle {{ 'active' if platform_enabled.indeed else '' }}" type="submit">
+            Indeed
+            <span class="control-state">{{ 'on' if platform_enabled.indeed else 'off' }}</span>
+          </button>
+        </form>
         <form method="post" action="/toggle/platform/naukri">
           <button class="control-toggle {{ 'active' if platform_enabled.naukri else '' }}" type="submit">
             Naukri
             <span class="control-state">{{ 'on' if platform_enabled.naukri else 'off' }}</span>
           </button>
         </form>
+      </div>
+      <div class="control-group">
+        <div class="control-title">Services</div>
+        <div class="service-row">
+          <div class="service-name">LinkedIn</div>
+          <div class="service-status">{{ service_status['jobsentinel-linkedin'] }}</div>
+          <form method="post" action="/service/start/jobsentinel-linkedin">
+            <button class="control-toggle" type="submit">start</button>
+          </form>
+          <form method="post" action="/service/stop/jobsentinel-linkedin">
+            <button class="control-toggle danger" type="submit">stop</button>
+          </form>
+        </div>
+        <div class="service-row">
+          <div class="service-name">Indeed</div>
+          <div class="service-status">{{ service_status['jobsentinel-indeed'] }}</div>
+          <form method="post" action="/service/start/jobsentinel-indeed">
+            <button class="control-toggle" type="submit">start</button>
+          </form>
+          <form method="post" action="/service/stop/jobsentinel-indeed">
+            <button class="control-toggle danger" type="submit">stop</button>
+          </form>
+        </div>
+        <div class="service-row">
+          <div class="service-name">Naukri</div>
+          <div class="service-status">{{ service_status['jobsentinel-naukri'] }}</div>
+          <form method="post" action="/service/start/jobsentinel-naukri">
+            <button class="control-toggle" type="submit">start</button>
+          </form>
+          <form method="post" action="/service/stop/jobsentinel-naukri">
+            <button class="control-toggle danger" type="submit">stop</button>
+          </form>
+        </div>
       </div>
       <div class="control-group">
         <div class="control-title">AI Filter</div>
@@ -50,6 +89,10 @@
             <span class="control-state">{{ 'on' if use_ai else 'off' }}</span>
           </button>
         </form>
+      </div>
+      <div class="control-group control-note">
+        <div class="control-title">Note</div>
+        <div class="control-text">Service buttons control Docker containers (local only).</div>
       </div>
     </section>
 
