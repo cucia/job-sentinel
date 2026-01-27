@@ -6,3 +6,13 @@ services:
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
+  dashboard:
+    build: .
+    command: ["python", "-m", "dashboard.app"]
+    env_file:
+      - .env
+    volumes:
+      - ./sessions:/app/sessions
+      - ./data:/app/data
+    ports:
+      - "5000:5000"

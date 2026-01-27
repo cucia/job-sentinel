@@ -1,7 +1,20 @@
 app:
   headless: true
-  run_interval_seconds: 300
+  run_interval_seconds: 60
   resume_path: resumes/resume.pdf
+  apply_all: true
+  use_ai: false
+  use_policy: false
+  entry_level_only: true
+  seniority_blocklist:
+    - senior
+    - lead
+    - manager
+    - principal
+    - director
+    - head
+    - staff
+    - architect
 
 storage:
   db_path: data/jobsentinel.db
@@ -29,7 +42,7 @@ ai:
 platforms:
   enabled:
     - linkedin
-    - naukri
+    # - naukri
   sessions:
     linkedin: sessions/linkedin.json
     naukri: sessions/naukri.json
@@ -37,9 +50,12 @@ platforms:
     search:
       keywords:
         - cybersecurity
+        - security analyst
         - soc analyst
+        - information security
       location: India
-      max_results: 10
+      max_results: 25
+      tpr_seconds: 0
   naukri:
     search:
       keywords:

@@ -22,6 +22,7 @@ def init_db(db_path: str) -> None:
                 description TEXT,
                 job_url TEXT,
                 status TEXT,
+                easy_apply INTEGER,
                 score INTEGER,
                 decision TEXT,
                 created_at TEXT,
@@ -30,6 +31,10 @@ def init_db(db_path: str) -> None:
             );
             """
         )
+        cur = conn.execute("PRAGMA table_info(jobs)")
+        columns = {row[1] for row in cur.fetchall()}
+        if "easy_apply" not in columns:
+            conn.execute("ALTER TABLE jobs ADD COLUMN easy_apply INTEGER")
         conn.commit()
 
 
@@ -46,8 +51,8 @@ def enqueue_job(db_path: str, job: dict) -> None:
             """
             INSERT OR IGNORE INTO jobs (
                 job_key, platform, title, company, location, description, job_url,
-                status, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, easy_apply, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job.get("job_key"),
@@ -58,6 +63,7 @@ def enqueue_job(db_path: str, job: dict) -> None:
                 job.get("description"),
                 job.get("job_url"),
                 "queued",
+                None,
                 now,
                 now,
             ),
@@ -141,3 +147,53 @@ def get_model_state(_db_path: str) -> dict:
 
 def save_model_state(_db_path: str, _weights: dict, _bias: float) -> None:
     return None
+
+
+def list_jobs(
+    db_path: str,
+    statuses: list[str] | None = None,
+    easy_apply: bool | None = None,
+    limit: int = 100,
+) -> list[dict]:
+    with _connect(db_path) as conn:
+        where = []
+        params: list = []
+        if statuses:
+            placeholders = ",".join(["?"] * len(statuses))
+            where.append(f"status IN ({placeholders})")
+            params.extend(statuses)
+        if easy_apply is True:
+            where.append("easy_apply = 1")
+        if easy_apply is False:
+            where.append("(easy_apply = 0 OR easy_apply IS NULL)")
+        where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+        query = (
+            "SELECT job_key, platform, title, company, location, description, job_url, "
+            "status, easy_apply, score, decision, created_at, updated_at, applied_at "
+            f"FROM jobs {where_sql} ORDER BY created_at DESC LIMIT ?"
+        )
+        params.append(limit)
+        cur = conn.execute(query, params)
+        rows = cur.fetchall()
+
+    jobs = []
+    for row in rows:
+        jobs.append(
+            {
+                "job_key": row[0],
+                "platform": row[1],
+                "title": row[2],
+                "company": row[3],
+                "location": row[4],
+                "description": row[5],
+                "job_url": row[6],
+                "status": row[7],
+                "easy_apply": row[8],
+                "score": row[9],
+                "decision": row[10],
+                "created_at": row[11],
+                "updated_at": row[12],
+                "applied_at": row[13],
+            }
+        )
+    return jobs

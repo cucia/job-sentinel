@@ -1,6 +1,7 @@
 import os
 import sys
 
+from core.async_runner import run
 from core.browser import open_context, close_context, save_storage_state
 from core.config import load_settings
 from core.logger import log
@@ -21,7 +22,10 @@ def get_session_path(base_dir: str, settings: dict, platform: str) -> str:
 def ensure_session(settings: dict, platform: str, login_url: str) -> str:
     base_dir = _base_dir()
     session_path = get_session_path(base_dir, settings, platform)
+    log(f"Session base_dir={base_dir}")
+    log(f"Session path={session_path}")
     if os.path.exists(session_path):
+        log("Session file already exists")
         return session_path
 
     headless = settings.get("app", {}).get("headless", False)
@@ -31,15 +35,19 @@ def ensure_session(settings: dict, platform: str, login_url: str) -> str:
 
     log(f"No session found for {platform}. Opening login page...")
 
-    playwright, browser, context = open_context(headless=False)
-    try:
-        page = context.new_page()
-        page.goto(login_url, wait_until="domcontentloaded")
-        input("Login in the opened browser, then press Enter here to continue...")
-        save_storage_state(context, session_path)
-        log(f"Session saved to {session_path}")
-    finally:
-        close_context(playwright, browser, context)
+    async def _login():
+        playwright, browser, context = await open_context(headless=False)
+        try:
+            page = await context.new_page()
+            log(f"Opening URL: {login_url}")
+            await page.goto(login_url, wait_until="domcontentloaded")
+            input("Login in the opened browser, then press Enter here to continue...")
+            await save_storage_state(context, session_path)
+            log(f"Session saved to {session_path}")
+        finally:
+            await close_context(playwright, browser, context)
+
+    run(_login())
 
     return session_path
 

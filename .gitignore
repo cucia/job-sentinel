@@ -17,3 +17,6 @@ resumes/
 
 # Logs
 *.log
+
+# Secrets
+.env

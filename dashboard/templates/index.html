@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>JobSentinel Dashboard</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">JS</div>
+        <div>
+          <div class="brand-title">JobSentinel</div>
+          <div class="brand-subtitle">Entry-level cybersecurity sweep</div>
+        </div>
+      </div>
+      <div class="tabs">
+        <a class="tab {{ 'active' if current_status == 'all' and current_easy != '1' else '' }}" href="/?status=all">all</a>
+        <a class="tab {{ 'active' if current_status == 'applied' else '' }}" href="/?status=applied">applied</a>
+        <a class="tab {{ 'active' if current_status == 'queued' else '' }}" href="/?status=queued">queued</a>
+        <a class="tab {{ 'active' if current_status == 'review' else '' }}" href="/?status=review">review</a>
+        <a class="tab {{ 'active' if current_easy == '1' else '' }}" href="/?status=all&easy=1">easy apply</a>
+        <a class="tab export-pill" href="/export.csv?status={{ current_status }}{% if current_easy == '1' %}&easy=1{% endif %}">export csv</a>
+      </div>
+    </header>
+
+    <section class="controls">
+      <div class="control-group">
+        <div class="control-title">Platforms</div>
+        <form method="post" action="/toggle/platform/linkedin">
+          <button class="control-toggle {{ 'active' if platform_enabled.linkedin else '' }}" type="submit">
+            LinkedIn
+            <span class="control-state">{{ 'on' if platform_enabled.linkedin else 'off' }}</span>
+          </button>
+        </form>
+        <form method="post" action="/toggle/platform/naukri">
+          <button class="control-toggle {{ 'active' if platform_enabled.naukri else '' }}" type="submit">
+            Naukri
+            <span class="control-state">{{ 'on' if platform_enabled.naukri else 'off' }}</span>
+          </button>
+        </form>
+      </div>
+      <div class="control-group">
+        <div class="control-title">AI Filter</div>
+        <form method="post" action="/toggle/ai">
+          <button class="control-toggle {{ 'active' if use_ai else '' }}" type="submit">
+            Model
+            <span class="control-state">{{ 'on' if use_ai else 'off' }}</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <main class="content">
+      {% if jobs %}
+      <div class="grid">
+        {% for job in jobs %}
+        <article class="card">
+          <div class="card-head">
+            <div>
+              <div class="title">{{ job.title }}</div>
+              <div class="meta">
+                <span class="meta-strong">{{ job.company or "Unknown company" }}</span>
+                <span class="meta-sep">-</span>
+                <span>{{ job.location or "Unknown location" }}</span>
+              </div>
+            </div>
+            <span class="badge status-{{ job.status }}">{{ job.status }}</span>
+          </div>
+          <div class="card-foot">
+            <div class="pill-group">
+              <div class="pill">{{ job.platform or "unknown" }}</div>
+              {% if job.easy_apply == 1 %}
+              <div class="pill pill-easy">easy apply</div>
+              {% endif %}
+            </div>
+            <div class="actions">
+              {% if job.job_url %}
+              {% set open_url = job.job_url %}
+              {% if job.platform == "linkedin" and job.job_url.startswith("/") %}
+              {% set open_url = "https://www.linkedin.com" + job.job_url %}
+              {% endif %}
+              <a class="link" href="{{ open_url }}" target="_blank">Open job</a>
+              {% endif %}
+              <form method="post" action="/approve">
+                <input type="hidden" name="job_key" value="{{ job.job_key }}" />
+                <button class="btn btn-approve" type="submit">Approve</button>
+              </form>
+              <form method="post" action="/reject">
+                <input type="hidden" name="job_key" value="{{ job.job_key }}" />
+                <button class="btn btn-reject" type="submit">Reject</button>
+              </form>
+            </div>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <section class="empty">
+        <div class="empty-card">
+          <div class="empty-title">No jobs yet</div>
+          <p class="empty-text">The crawler will add new roles here every minute.</p>
+        </div>
+      </section>
+      {% endif %}
+    </main>
+  </div>
+</body>
+</html>
