@@ -1,3 +1,4 @@
+import argparse
 import hashlib
 import os
 import time
@@ -17,6 +18,7 @@ from core.storage import (
     update_job,
 )
 from platforms.linkedin.collector import collect_jobs as collect_linkedin
+from platforms.indeed.collector import collect_jobs as collect_indeed
 from platforms.naukri.collector import collect_jobs as collect_naukri
 
 
@@ -45,8 +47,8 @@ def _is_entry_level(job: dict, blocklist: list[str]) -> bool:
     return not any(term in text for term in blocklist)
 
 
-def collect_jobs(settings: dict, profile: dict) -> list:
-    enabled = settings.get("platforms", {}).get("enabled", [])
+def collect_jobs(settings: dict, profile: dict, enabled_override: list[str] | None = None) -> list:
+    enabled = enabled_override or settings.get("platforms", {}).get("enabled", [])
     jobs = []
 
     if "linkedin" in enabled:
@@ -56,6 +58,14 @@ def collect_jobs(settings: dict, profile: dict) -> list:
             jobs.extend(linkedin_jobs)
         except Exception as exc:
             log(f"LinkedIn collection failed: {exc}")
+
+    if "indeed" in enabled:
+        try:
+            indeed_jobs = collect_indeed(settings, profile)
+            log(f"Indeed: collector returned {len(indeed_jobs)} jobs")
+            jobs.extend(indeed_jobs)
+        except Exception as exc:
+            log(f"Indeed collection failed: {exc}")
 
     if "naukri" in enabled:
         try:
@@ -69,7 +79,7 @@ def collect_jobs(settings: dict, profile: dict) -> list:
     return jobs
 
 
-def run_cycle() -> None:
+def run_cycle(enabled_override: list[str] | None = None) -> None:
     base_dir = _base_dir()
     settings = load_settings(base_dir)
     profile = load_profile(base_dir)
@@ -79,7 +89,7 @@ def run_cycle() -> None:
     db_path = _resolve_db_path(base_dir, settings)
     init_db(db_path)
 
-    jobs = collect_jobs(settings, profile)
+    jobs = collect_jobs(settings, profile, enabled_override)
     log(f"Collected {len(jobs)} jobs")
     daily_limit = settings.get("limits", {}).get("daily_applications", 10)
     policy = settings.get("policy", {})
@@ -230,9 +240,29 @@ def main() -> None:
     log("JobSentinel started")
     settings = load_settings(_base_dir())
     interval = settings.get("app", {}).get("run_interval_seconds", 300)
+    env_platforms = os.environ.get("JOBSENTINEL_PLATFORMS", "").strip()
+
+    parser = argparse.ArgumentParser(description="JobSentinel runner")
+    parser.add_argument(
+        "--platforms",
+        help="Comma-separated list of platforms to run (e.g., linkedin,naukri).",
+        default="",
+    )
+    args, _unknown = parser.parse_known_args()
+    platforms_arg = args.platforms.strip()
+    platforms_override = []
+    source = ""
+    if platforms_arg:
+        platforms_override = [p.strip() for p in platforms_arg.split(",") if p.strip()]
+        source = "args"
+    elif env_platforms:
+        platforms_override = [p.strip() for p in env_platforms.split(",") if p.strip()]
+        source = "env"
+    if platforms_override:
+        log(f"Platform override ({source}): {platforms_override}")
 
     while True:
-        run_cycle()
+        run_cycle(platforms_override or None)
         time.sleep(interval)
 
 

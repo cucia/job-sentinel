@@ -1,11 +1,11 @@
 app:
-  headless: true
+  headless: false
   run_interval_seconds: 60
   resume_path: resumes/resume.pdf
   apply_all: true
   use_ai: false
   use_policy: false
-  entry_level_only: true
+  entry_level_only: false
   seniority_blocklist:
     - senior
     - lead
@@ -23,17 +23,9 @@ limits:
   daily_applications: 10
 
 policy:
-  allowed_roles:
-    - cybersecurity
-    - soc
-    - security analyst
-  required_skills:
-    - linux
-    - networking
-  blocked_keywords:
-    - senior
-    - lead
-    - manager
+  allowed_roles: []
+  required_skills: []
+  blocked_keywords: []
 
 ai:
   min_score: 70
@@ -42,24 +34,30 @@ ai:
 platforms:
   enabled:
     - linkedin
+    # - indeed
     # - naukri
   sessions:
     linkedin: sessions/linkedin.json
+    indeed: sessions/indeed.json
     naukri: sessions/naukri.json
   linkedin:
     search:
       keywords:
-        - cybersecurity
-        - security analyst
-        - soc analyst
-        - information security
+        - security
+        
       location: India
       max_results: 25
       tpr_seconds: 0
-  naukri:
+  indeed:
     search:
       keywords:
         - cybersecurity
         - soc analyst
       location: India
-      max_results: 10
+      max_results: 20
+  naukri:
+    search:
+      keywords:
+        - security
+      location: India
+      max_results: 1000000

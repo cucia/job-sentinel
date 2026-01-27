@@ -2,6 +2,7 @@ import csv
 import io
 import os
 
+import docker
 from flask import Flask, request, redirect, url_for, render_template, Response
 
 from core.config import load_settings, save_settings
@@ -29,6 +30,26 @@ def _load_settings_and_db() -> tuple[str, dict, str]:
     return base_dir, settings, db_path
 
 
+def _docker_client():
+    try:
+        return docker.from_env()
+    except Exception:
+        return None
+
+
+def _service_container_status(service: str) -> str:
+    client = _docker_client()
+    if not client:
+        return "unknown"
+    try:
+        containers = client.containers.list(all=True, filters={"label": f"com.docker.compose.service={service}"})
+        if not containers:
+            return "not-found"
+        return containers[0].status
+    except Exception:
+        return "unknown"
+
+
 
 
 @app.route("/")
@@ -43,9 +64,15 @@ def index():
     enabled = settings.get("platforms", {}).get("enabled", [])
     platform_enabled = {
         "linkedin": "linkedin" in enabled,
+        "indeed": "indeed" in enabled,
         "naukri": "naukri" in enabled,
     }
     use_ai = bool(settings.get("app", {}).get("use_ai", False))
+    service_status = {
+        "jobsentinel-linkedin": _service_container_status("jobsentinel-linkedin"),
+        "jobsentinel-indeed": _service_container_status("jobsentinel-indeed"),
+        "jobsentinel-naukri": _service_container_status("jobsentinel-naukri"),
+    }
     return render_template(
         "index.html",
         jobs=jobs,
@@ -53,6 +80,7 @@ def index():
         current_easy=easy,
         platform_enabled=platform_enabled,
         use_ai=use_ai,
+        service_status=service_status,
     )
 
 
@@ -154,6 +182,34 @@ def toggle_ai():
     if app_cfg["use_ai"]:
         app_cfg["enrich_before_ai"] = True
     save_settings(base_dir, settings)
+    return redirect(url_for("index"))
+
+
+@app.post("/service/start/<service>")
+def start_service(service: str):
+    client = _docker_client()
+    if not client:
+        return redirect(url_for("index"))
+    try:
+        containers = client.containers.list(all=True, filters={"label": f"com.docker.compose.service={service}"})
+        if containers:
+            containers[0].start()
+    except Exception:
+        pass
+    return redirect(url_for("index"))
+
+
+@app.post("/service/stop/<service>")
+def stop_service(service: str):
+    client = _docker_client()
+    if not client:
+        return redirect(url_for("index"))
+    try:
+        containers = client.containers.list(all=True, filters={"label": f"com.docker.compose.service={service}"})
+        if containers:
+            containers[0].stop()
+    except Exception:
+        pass
     return redirect(url_for("index"))
 
 
