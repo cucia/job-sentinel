@@ -8,7 +8,7 @@
 </head>
 <body>
   <div class="page">
-    <header class="topbar">
+    <header class="topbar" id="overview">
       <div class="brand">
         <div class="brand-mark">JS</div>
         <div>
@@ -16,6 +16,13 @@
           <div class="brand-subtitle">Entry-level cybersecurity sweep</div>
         </div>
       </div>
+      <nav class="nav">
+        <a class="nav-link" href="#overview">Overview</a>
+        <a class="nav-link" href="#platforms">Platforms</a>
+        <a class="nav-link" href="#services">Services</a>
+        <a class="nav-link" href="#ai">AI Filter</a>
+        <a class="nav-link" href="#jobs">Jobs</a>
+      </nav>
       <div class="tabs">
         <a class="tab {{ 'active' if current_status == 'all' and current_easy != '1' else '' }}" href="/?status=all">all</a>
         <a class="tab {{ 'active' if current_status == 'applied' else '' }}" href="/?status=applied">applied</a>
@@ -26,7 +33,7 @@
       </div>
     </header>
 
-    <section class="controls">
+    <section class="controls" id="platforms">
       <div class="control-group">
         <div class="control-title">Platforms</div>
         <form method="post" action="/toggle/platform/linkedin">
@@ -48,7 +55,7 @@
           </button>
         </form>
       </div>
-      <div class="control-group">
+      <div class="control-group" id="services">
         <div class="control-title">Services</div>
         <div class="service-row">
           <div class="service-name">LinkedIn</div>
@@ -81,7 +88,7 @@
           </form>
         </div>
       </div>
-      <div class="control-group">
+      <div class="control-group" id="ai">
         <div class="control-title">AI Filter</div>
         <form method="post" action="/toggle/ai">
           <button class="control-toggle {{ 'active' if use_ai else '' }}" type="submit">
@@ -96,7 +103,7 @@
       </div>
     </section>
 
-    <main class="content">
+    <main class="content" id="jobs">
       {% if jobs %}
       <div class="grid">
         {% for job in jobs %}
