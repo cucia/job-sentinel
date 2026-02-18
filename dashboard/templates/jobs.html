@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Jobs - JobSentinel{% endblock %}
+
+{% block content %}
+<section class="section section-tight">
+  <div class="section-head">
+    <div>
+      <div class="section-title">{{ current_status|capitalize }} jobs</div>
+      <div class="section-subtitle">Manage the queue with approve/reject actions.</div>
+    </div>
+    <div class="section-actions">
+      <a class="tab export-pill" href="/export.csv?status={{ current_status }}&platform={{ current_platform }}">Export CSV</a>
+    </div>
+  </div>
+  <div class="tabs">
+    {% for p in platforms %}
+    <a class="tab {{ 'active' if current_platform == p else '' }}" href="{{ url_for('jobs', status=current_status) }}{% if p != 'all' %}?platform={{ p }}{% endif %}">
+      {{ p }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="content" id="jobs">
+  {% if jobs %}
+  <div class="grid">
+    {% for job in jobs %}
+    <article class="card">
+      <div class="card-head">
+        <div>
+          <div class="title">{{ job.title }}</div>
+          <div class="meta">
+            <span class="meta-strong">{{ job.company or (job.platform | capitalize) or "Unknown company" }}</span>
+            <span class="meta-sep">-</span>
+            <span>{{ job.location or "Unknown location" }}</span>
+          </div>
+          <div class="meta meta-small">
+            {% if job.posted_at %}
+            Posted: {{ job.posted_at }}
+            {% elif job.posted_text %}
+            Posted: {{ job.posted_text }}
+            {% else %}
+            Seen: {{ job.created_at }}
+            {% endif %}
+            {% if job.applied_at %}
+            · Applied: {{ job.applied_at }}
+            {% endif %}
+          </div>
+        </div>
+        <span class="badge status-{{ job.status }}">{{ job.status }}</span>
+      </div>
+      <div class="card-foot">
+        <div class="pill-group">
+          <div class="pill">{{ job.platform or "unknown" }}</div>
+          {% if job.easy_apply == 1 %}
+          <div class="pill pill-easy">easy apply</div>
+          {% endif %}
+        </div>
+        <div class="actions">
+          {% if job.job_url %}
+          {% set open_url = job.job_url %}
+          {% if job.platform == "linkedin" and job.job_url.startswith("/") %}
+          {% set open_url = "https://www.linkedin.com" + job.job_url %}
+          {% endif %}
+          <a class="link" href="{{ open_url }}" target="_blank">Open job</a>
+          {% endif %}
+          <form method="post" action="{{ url_for('approve') }}">
+            <input type="hidden" name="job_key" value="{{ job.job_key }}" />
+            <input type="hidden" name="current_status" value="{{ current_status }}" />
+            <input type="hidden" name="current_platform" value="{{ current_platform }}" />
+            <button class="btn btn-approve" type="submit">Approve</button>
+          </form>
+          <form method="post" action="{{ url_for('reject') }}">
+            <input type="hidden" name="job_key" value="{{ job.job_key }}" />
+            <input type="hidden" name="current_status" value="{{ current_status }}" />
+            <input type="hidden" name="current_platform" value="{{ current_platform }}" />
+            <button class="btn btn-reject" type="submit">Reject</button>
+          </form>
+          {% if job.status != "applied" %}
+          <form method="post" action="{{ url_for('mark_applied') }}">
+            <input type="hidden" name="job_key" value="{{ job.job_key }}" />
+            <input type="hidden" name="current_status" value="{{ current_status }}" />
+            <input type="hidden" name="current_platform" value="{{ current_platform }}" />
+            <button class="btn btn-applied" type="submit">Mark applied</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <section class="empty">
+    <div class="empty-card">
+      <div class="empty-title">No jobs yet</div>
+      <p class="empty-text">The crawler will add new roles here every minute.</p>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

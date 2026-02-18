@@ -51,28 +51,32 @@ def collect_jobs(settings: dict, profile: dict) -> list:
             items = await page.query_selector_all("article.jobTuple, div.jobTuple")
             jobs: list = []
             for item in items:
-                title_el = await item.query_selector("a.title")
-                company_el = await item.query_selector("a.subTitle")
-                location_el = await item.query_selector("span.locWdth")
+            title_el = await item.query_selector("a.title")
+            company_el = await item.query_selector("a.subTitle")
+            location_el = await item.query_selector("span.locWdth")
+            time_el = await item.query_selector("span.job-post-day, span.job-posted, span.type")
 
-                job_url = await title_el.get_attribute("href") if title_el else ""
-                title = await _text_or_empty(title_el)
-                company = await _text_or_empty(company_el)
-                location_text = await _text_or_empty(location_el)
+            job_url = await title_el.get_attribute("href") if title_el else ""
+            title = await _text_or_empty(title_el)
+            company = await _text_or_empty(company_el)
+            location_text = await _text_or_empty(location_el)
+            posted_text = await _text_or_empty(time_el) or None
 
-                if not title or not job_url:
-                    continue
+            if not title or not job_url:
+                continue
 
-                jobs.append(
-                    {
-                        "platform": "naukri",
-                        "title": title,
-                        "company": company,
-                        "location": location_text,
-                        "description": "",
-                        "job_url": job_url.split("?")[0],
-                    }
-                )
+            jobs.append(
+                {
+                    "platform": "naukri",
+                    "title": title,
+                    "company": company,
+                    "location": location_text,
+                    "description": "",
+                    "job_url": job_url.split("?")[0],
+                    "posted_at": None,
+                    "posted_text": posted_text,
+                }
+            )
 
                 if len(jobs) >= max_results:
                     break

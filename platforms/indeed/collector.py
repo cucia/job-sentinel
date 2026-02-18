@@ -43,6 +43,9 @@ def collect_jobs(settings: dict, profile: dict) -> list:
             jobs: list = []
             seen = set()
             for link in items:
+                card = await link.evaluate_handle(
+                    "el => el.closest('div.job_seen_beacon') || el.closest('div.cardOutline') || el.closest('div.jobsearch-SerpJobCard')"
+                )
                 href = await link.get_attribute("href") or ""
                 if not href:
                     continue
@@ -55,14 +58,28 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                 seen.add(job_url)
 
                 title = (await link.text_content() or "").strip() or "Indeed job"
+                company = ""
+                location_text = ""
+                posted_text = None
+                posted_at = None
+                if card:
+                    company_el = await card.query_selector("span.companyName, a[data-testid='company-name']")
+                    location_el = await card.query_selector("div.companyLocation, span.companyLocation")
+                    time_el = await card.query_selector("span.date, time")
+                    company = (await company_el.text_content() or "").strip() if company_el else ""
+                    location_text = (await location_el.text_content() or "").strip() if location_el else ""
+                    posted_text = (await time_el.text_content() or "").strip() if time_el else None
+                    posted_at = await time_el.get_attribute("datetime") if time_el else None
                 jobs.append(
                     {
                         "platform": "indeed",
                         "title": title,
-                        "company": "",
-                        "location": "",
+                        "company": company,
+                        "location": location_text,
                         "description": "",
                         "job_url": job_url,
+                        "posted_at": posted_at,
+                        "posted_text": posted_text,
                     }
                 )
                 if len(jobs) >= max_results:

@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}JobSentinel{% endblock %}</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="topbar" id="overview">
+      <div class="brand">
+        <div class="brand-mark">JS</div>
+        <div>
+          <div class="brand-title">JobSentinel</div>
+          <div class="brand-subtitle">Entry-level cybersecurity sweep</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+        <a class="nav-link" href="{{ url_for('applied') }}">Applied</a>
+        <a class="nav-link" href="{{ url_for('review') }}">Review</a>
+        <a class="nav-link" href="{{ url_for('queued') }}">Queued</a>
+        <a class="nav-link" href="{{ url_for('rejected') }}">Rejected</a>
+        <a class="nav-link" href="{{ url_for('all_jobs') }}">All Jobs</a>
+      </nav>
+      <div class="tabs">
+        {% if show_export %}
+        <a class="tab export-pill" href="/export.csv?status={{ current_status or 'all' }}">export csv</a>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+  </div>
+</body>
+</html>

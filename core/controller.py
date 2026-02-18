@@ -3,7 +3,7 @@ import hashlib
 import os
 import time
 
-from core.ai_engine import evaluate_job
+from agents.ai_engine import evaluate_job
 from core.config import load_profile, load_settings
 from core.limiter import can_apply
 from core.logger import log
