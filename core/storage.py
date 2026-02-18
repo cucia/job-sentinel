@@ -25,6 +25,8 @@ def init_db(db_path: str) -> None:
                 easy_apply INTEGER,
                 score INTEGER,
                 decision TEXT,
+                posted_at TEXT,
+                posted_text TEXT,
                 created_at TEXT,
                 updated_at TEXT,
                 applied_at TEXT
@@ -35,6 +37,10 @@ def init_db(db_path: str) -> None:
         columns = {row[1] for row in cur.fetchall()}
         if "easy_apply" not in columns:
             conn.execute("ALTER TABLE jobs ADD COLUMN easy_apply INTEGER")
+        if "posted_at" not in columns:
+            conn.execute("ALTER TABLE jobs ADD COLUMN posted_at TEXT")
+        if "posted_text" not in columns:
+            conn.execute("ALTER TABLE jobs ADD COLUMN posted_text TEXT")
         conn.commit()
 
 
@@ -47,12 +53,14 @@ def has_seen_job(db_path: str, job_key: str) -> bool:
 def enqueue_job(db_path: str, job: dict) -> None:
     now = datetime.utcnow().isoformat()
     with _connect(db_path) as conn:
+        posted_at = job.get("posted_at") or None
+        posted_text = job.get("posted_text") or None
         conn.execute(
             """
             INSERT OR IGNORE INTO jobs (
                 job_key, platform, title, company, location, description, job_url,
-                status, easy_apply, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                status, easy_apply, posted_at, posted_text, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job.get("job_key"),
@@ -64,6 +72,8 @@ def enqueue_job(db_path: str, job: dict) -> None:
                 job.get("job_url"),
                 "queued",
                 None,
+                posted_at,
+                posted_text,
                 now,
                 now,
             ),
@@ -153,6 +163,7 @@ def list_jobs(
     db_path: str,
     statuses: list[str] | None = None,
     easy_apply: bool | None = None,
+    platform: str | None = None,
     limit: int = 100,
 ) -> list[dict]:
     with _connect(db_path) as conn:
@@ -166,11 +177,15 @@ def list_jobs(
             where.append("easy_apply = 1")
         if easy_apply is False:
             where.append("(easy_apply = 0 OR easy_apply IS NULL)")
+        if platform:
+            where.append("platform = ?")
+            params.append(platform)
         where_sql = f"WHERE {' AND '.join(where)}" if where else ""
         query = (
             "SELECT job_key, platform, title, company, location, description, job_url, "
-            "status, easy_apply, score, decision, created_at, updated_at, applied_at "
-            f"FROM jobs {where_sql} ORDER BY created_at DESC LIMIT ?"
+            "status, easy_apply, score, decision, posted_at, posted_text, created_at, updated_at, applied_at "
+            f"FROM jobs {where_sql} "
+            "ORDER BY COALESCE(NULLIF(posted_at, ''), created_at) DESC LIMIT ?"
         )
         params.append(limit)
         cur = conn.execute(query, params)
@@ -191,9 +206,11 @@ def list_jobs(
                 "easy_apply": row[8],
                 "score": row[9],
                 "decision": row[10],
-                "created_at": row[11],
-                "updated_at": row[12],
-                "applied_at": row[13],
+                "posted_at": row[11],
+                "posted_text": row[12],
+                "created_at": row[13],
+                "updated_at": row[14],
+                "applied_at": row[15],
             }
         )
     return jobs

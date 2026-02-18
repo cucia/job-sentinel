@@ -1,161 +1,218 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>JobSentinel Dashboard</title>
-  <link rel="stylesheet" href="/static/styles.css" />
-</head>
-<body>
-  <div class="page">
-    <header class="topbar" id="overview">
-      <div class="brand">
-        <div class="brand-mark">JS</div>
-        <div>
-          <div class="brand-title">JobSentinel</div>
-          <div class="brand-subtitle">Entry-level cybersecurity sweep</div>
-        </div>
-      </div>
-      <nav class="nav">
-        <a class="nav-link" href="#overview">Overview</a>
-        <a class="nav-link" href="#platforms">Platforms</a>
-        <a class="nav-link" href="#services">Services</a>
-        <a class="nav-link" href="#ai">AI Filter</a>
-        <a class="nav-link" href="#jobs">Jobs</a>
-      </nav>
-      <div class="tabs">
-        <a class="tab {{ 'active' if current_status == 'all' and current_easy != '1' else '' }}" href="/?status=all">all</a>
-        <a class="tab {{ 'active' if current_status == 'applied' else '' }}" href="/?status=applied">applied</a>
-        <a class="tab {{ 'active' if current_status == 'queued' else '' }}" href="/?status=queued">queued</a>
-        <a class="tab {{ 'active' if current_status == 'review' else '' }}" href="/?status=review">review</a>
-        <a class="tab {{ 'active' if current_easy == '1' else '' }}" href="/?status=all&easy=1">easy apply</a>
-        <a class="tab export-pill" href="/export.csv?status={{ current_status }}{% if current_easy == '1' %}&easy=1{% endif %}">export csv</a>
-      </div>
-    </header>
+{% extends "base.html" %}
 
-    <section class="controls" id="platforms">
-      <div class="control-group">
-        <div class="control-title">Platforms</div>
-        <form method="post" action="/toggle/platform/linkedin">
-          <button class="control-toggle {{ 'active' if platform_enabled.linkedin else '' }}" type="submit">
-            LinkedIn
-            <span class="control-state">{{ 'on' if platform_enabled.linkedin else 'off' }}</span>
-          </button>
-        </form>
-        <form method="post" action="/toggle/platform/indeed">
-          <button class="control-toggle {{ 'active' if platform_enabled.indeed else '' }}" type="submit">
-            Indeed
-            <span class="control-state">{{ 'on' if platform_enabled.indeed else 'off' }}</span>
-          </button>
-        </form>
-        <form method="post" action="/toggle/platform/naukri">
-          <button class="control-toggle {{ 'active' if platform_enabled.naukri else '' }}" type="submit">
-            Naukri
-            <span class="control-state">{{ 'on' if platform_enabled.naukri else 'off' }}</span>
-          </button>
-        </form>
-      </div>
-      <div class="control-group" id="services">
-        <div class="control-title">Services</div>
-        <div class="service-row">
-          <div class="service-name">LinkedIn</div>
-          <div class="service-status">{{ service_status['jobsentinel-linkedin'] }}</div>
-          <form method="post" action="/service/start/jobsentinel-linkedin">
-            <button class="control-toggle" type="submit">start</button>
-          </form>
-          <form method="post" action="/service/stop/jobsentinel-linkedin">
-            <button class="control-toggle danger" type="submit">stop</button>
-          </form>
-        </div>
-        <div class="service-row">
-          <div class="service-name">Indeed</div>
-          <div class="service-status">{{ service_status['jobsentinel-indeed'] }}</div>
-          <form method="post" action="/service/start/jobsentinel-indeed">
-            <button class="control-toggle" type="submit">start</button>
-          </form>
-          <form method="post" action="/service/stop/jobsentinel-indeed">
-            <button class="control-toggle danger" type="submit">stop</button>
-          </form>
-        </div>
-        <div class="service-row">
-          <div class="service-name">Naukri</div>
-          <div class="service-status">{{ service_status['jobsentinel-naukri'] }}</div>
-          <form method="post" action="/service/start/jobsentinel-naukri">
-            <button class="control-toggle" type="submit">start</button>
-          </form>
-          <form method="post" action="/service/stop/jobsentinel-naukri">
-            <button class="control-toggle danger" type="submit">stop</button>
-          </form>
-        </div>
-      </div>
-      <div class="control-group" id="ai">
-        <div class="control-title">AI Filter</div>
-        <form method="post" action="/toggle/ai">
-          <button class="control-toggle {{ 'active' if use_ai else '' }}" type="submit">
-            Model
-            <span class="control-state">{{ 'on' if use_ai else 'off' }}</span>
-          </button>
-        </form>
-      </div>
-      <div class="control-group control-note">
-        <div class="control-title">Note</div>
-        <div class="control-text">Service buttons control Docker containers (local only).</div>
-      </div>
-    </section>
+{% block title %}Dashboard - JobSentinel{% endblock %}
 
-    <main class="content" id="jobs">
-      {% if jobs %}
-      <div class="grid">
-        {% for job in jobs %}
-        <article class="card">
-          <div class="card-head">
-            <div>
-              <div class="title">{{ job.title }}</div>
-              <div class="meta">
-                <span class="meta-strong">{{ job.company or "Unknown company" }}</span>
-                <span class="meta-sep">-</span>
-                <span>{{ job.location or "Unknown location" }}</span>
-              </div>
-            </div>
-            <span class="badge status-{{ job.status }}">{{ job.status }}</span>
-          </div>
-          <div class="card-foot">
-            <div class="pill-group">
-              <div class="pill">{{ job.platform or "unknown" }}</div>
-              {% if job.easy_apply == 1 %}
-              <div class="pill pill-easy">easy apply</div>
-              {% endif %}
-            </div>
-            <div class="actions">
-              {% if job.job_url %}
-              {% set open_url = job.job_url %}
-              {% if job.platform == "linkedin" and job.job_url.startswith("/") %}
-              {% set open_url = "https://www.linkedin.com" + job.job_url %}
-              {% endif %}
-              <a class="link" href="{{ open_url }}" target="_blank">Open job</a>
-              {% endif %}
-              <form method="post" action="/approve">
-                <input type="hidden" name="job_key" value="{{ job.job_key }}" />
-                <button class="btn btn-approve" type="submit">Approve</button>
-              </form>
-              <form method="post" action="/reject">
-                <input type="hidden" name="job_key" value="{{ job.job_key }}" />
-                <button class="btn btn-reject" type="submit">Reject</button>
-              </form>
-            </div>
-          </div>
-        </article>
-        {% endfor %}
-      </div>
-      {% else %}
-      <section class="empty">
-        <div class="empty-card">
-          <div class="empty-title">No jobs yet</div>
-          <p class="empty-text">The crawler will add new roles here every minute.</p>
-        </div>
-      </section>
-      {% endif %}
-    </main>
+{% block content %}
+<section class="hero">
+  <div class="hero-copy">
+    <div class="eyebrow">System overview</div>
+    <h1 class="hero-title">Live control for the job pipeline.</h1>
+    <p class="hero-subtitle">Monitor platform health, review queues, and nudge services without leaving the dashboard.</p>
+    <div class="status-row">
+      <span class="status-pill status-ok">Dashboard online</span>
+      <span class="status-pill {{ 'status-ok' if docker_available else 'status-warn' }}">Docker {{ 'connected' if docker_available else 'unavailable' }}</span>
+      <span class="status-pill">Uptime {{ uptime }}</span>
+      <span class="status-pill">Last update {{ stats.last_updated or '—' }}</span>
+    </div>
   </div>
-</body>
-</html>
+  <div class="hero-metrics">
+    <div class="metric-card">
+      <div class="metric-label">Total jobs</div>
+      <div class="metric-value">{{ stats.counts.total }}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Applied today</div>
+      <div class="metric-value">{{ stats.applied_today }}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Review pending</div>
+      <div class="metric-value">{{ stats.counts.review }}</div>
+      <a class="metric-link" href="{{ url_for('review') }}">View review</a>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Queued</div>
+      <div class="metric-value">{{ stats.counts.queued }}</div>
+      <a class="metric-link" href="{{ url_for('queued') }}">View queued</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Quick routes</div>
+      <div class="section-subtitle">Jump straight into the work queues.</div>
+    </div>
+  </div>
+  <div class="route-grid">
+    <a class="route-card" href="{{ url_for('applied') }}">
+      <div class="route-title">Applied</div>
+      <div class="route-count">{{ stats.counts.applied }}</div>
+    </a>
+    <a class="route-card" href="{{ url_for('review') }}">
+      <div class="route-title">Review</div>
+      <div class="route-count">{{ stats.counts.review }}</div>
+    </a>
+    <a class="route-card" href="{{ url_for('queued') }}">
+      <div class="route-title">Queued</div>
+      <div class="route-count">{{ stats.counts.queued }}</div>
+    </a>
+    <a class="route-card" href="{{ url_for('rejected') }}">
+      <div class="route-title">Rejected</div>
+      <div class="route-count">{{ stats.counts.rejected }}</div>
+    </a>
+    <a class="route-card" href="{{ url_for('all_jobs') }}">
+      <div class="route-title">All jobs</div>
+      <div class="route-count">{{ stats.counts.total }}</div>
+    </a>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Core controls</div>
+      <div class="section-subtitle">Toggle platforms and AI filters for the next crawl cycle.</div>
+    </div>
+  </div>
+  <div class="controls-grid">
+    <div class="control-group">
+      <div class="control-title">AI filter</div>
+      <form method="post" action="/toggle/ai">
+        <button class="control-toggle {{ 'active' if use_ai else '' }}" type="submit">
+          Model
+          <span class="control-state">{{ 'on' if use_ai else 'off' }}</span>
+        </button>
+      </form>
+      <div class="control-meta">
+        <div>Run interval: <strong>{{ run_interval }}s</strong></div>
+        <div>Headless: <strong>{{ 'on' if headless else 'off' }}</strong></div>
+      </div>
+    </div>
+    <div class="control-group">
+      <div class="control-title">Health</div>
+      <div class="health-row">
+        <span class="status-pill status-ok">DB ready</span>
+        <span class="status-pill {{ 'status-ok' if docker_available else 'status-warn' }}">Docker {{ 'ready' if docker_available else 'missing' }}</span>
+      </div>
+      <div class="control-meta">
+        <div>DB size: <strong>{{ (health.db_size / 1024) | round(1) }} KB</strong></div>
+        <div>DB path: <strong>{{ health.db_path }}</strong></div>
+        <div>Sessions: 
+          <strong>
+            {% for key, info in health.session_info.items() %}
+              {{ key }}={{ 'ok' if info.exists else 'missing' }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </strong>
+        </div>
+      </div>
+      <div class="control-text">Session files gate authenticated scraping and apply flows.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Agent chat</div>
+      <div class="section-subtitle">Tell the assistant about your background and preferences.</div>
+    </div>
+  </div>
+  <div class="chat-shell">
+    <div class="chat-profile">
+      <div class="profile-title">Profile</div>
+      <div class="profile-item"><strong>Name:</strong> {{ profile.name or "Cucia" }}</div>
+      <div class="profile-item"><strong>Role:</strong> {{ profile.role or "—" }}</div>
+      <div class="profile-item"><strong>Experience:</strong> {{ profile.experience or "—" }}</div>
+      <div class="profile-item"><strong>Skills:</strong> {{ profile.skills | join(", ") if profile.skills else "—" }}</div>
+      <div class="profile-item"><strong>Location:</strong> {{ profile.location or "—" }}</div>
+    </div>
+    <div class="chat-panel">
+      <div class="chat-log">
+        {% if messages %}
+          {% for msg in messages %}
+          <div class="chat-row {{ msg.role }}">
+            <div class="chat-bubble">
+              <div class="chat-meta">{{ msg.role }} · {{ msg.ts }}</div>
+              <div class="chat-text">{{ msg.content }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="chat-empty">Start by telling me your role, experience, skills, and location.</div>
+        {% endif %}
+      </div>
+      <form class="chat-form" method="post" action="/agent/chat">
+        <input type="hidden" name="profile_name" value="{{ profile.name or 'cucia' }}" />
+        <textarea name="message" rows="3" placeholder="Example: My role is SOC analyst. Skills: Linux, SIEM, networking. I have 1 year experience."></textarea>
+        <button class="control-toggle active" type="submit">Send to agent</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Services</div>
+      <div class="section-subtitle">Start or stop the collectors per platform.</div>
+    </div>
+  </div>
+  <div class="service-grid">
+    <div class="service-card">
+      <div class="service-name">LinkedIn collector</div>
+      <div class="service-status">
+        <span class="status-indicator status-{{ service_labels['jobsentinel-linkedin'] }}"></span>
+        {{ service_labels['jobsentinel-linkedin'] }} · {{ service_status['jobsentinel-linkedin'] }}
+      </div>
+      <div class="service-actions">
+        {% if service_labels['jobsentinel-linkedin'] == 'live' %}
+        <form method="post" action="/service/stop/jobsentinel-linkedin">
+          <button class="control-toggle danger" type="submit">stop</button>
+        </form>
+        {% else %}
+        <form method="post" action="/service/start/jobsentinel-linkedin">
+          <button class="control-toggle" type="submit">start</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    <div class="service-card">
+      <div class="service-name">Indeed collector</div>
+      <div class="service-status">
+        <span class="status-indicator status-{{ service_labels['jobsentinel-indeed'] }}"></span>
+        {{ service_labels['jobsentinel-indeed'] }} · {{ service_status['jobsentinel-indeed'] }}
+      </div>
+      <div class="service-actions">
+        {% if service_labels['jobsentinel-indeed'] == 'live' %}
+        <form method="post" action="/service/stop/jobsentinel-indeed">
+          <button class="control-toggle danger" type="submit">stop</button>
+        </form>
+        {% else %}
+        <form method="post" action="/service/start/jobsentinel-indeed">
+          <button class="control-toggle" type="submit">start</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    <div class="service-card">
+      <div class="service-name">Naukri collector</div>
+      <div class="service-status">
+        <span class="status-indicator status-{{ service_labels['jobsentinel-naukri'] }}"></span>
+        {{ service_labels['jobsentinel-naukri'] }} · {{ service_status['jobsentinel-naukri'] }}
+      </div>
+      <div class="service-actions">
+        {% if service_labels['jobsentinel-naukri'] == 'live' %}
+        <form method="post" action="/service/stop/jobsentinel-naukri">
+          <button class="control-toggle danger" type="submit">stop</button>
+        </form>
+        {% else %}
+        <form method="post" action="/service/start/jobsentinel-naukri">
+          <button class="control-toggle" type="submit">start</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

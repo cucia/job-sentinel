@@ -21,6 +21,15 @@ async def _first_selector(page, selectors):
     return None
 
 
+async def _posted_info(item):
+    time_el = await item.query_selector("time")
+    if not time_el:
+        return None, None
+    posted_text = (await time_el.text_content() or "").strip() or None
+    posted_at = await time_el.get_attribute("datetime") or None
+    return posted_at, posted_text
+
+
 def collect_jobs(settings: dict, profile: dict) -> list:
     platform_settings = settings.get("platforms", {}).get("linkedin", {})
     search = platform_settings.get("search", {})
@@ -115,6 +124,7 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                     title = await _text_or_empty(title_el)
                     company = await _text_or_empty(company_el)
                     location_text = await _text_or_empty(location_el)
+                    posted_at, posted_text = await _posted_info(item)
 
                     jobs.append(
                         {
@@ -124,6 +134,8 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                             "location": location_text,
                             "description": "",
                             "job_url": job_url,
+                            "posted_at": posted_at,
+                            "posted_text": posted_text,
                         }
                     )
                     if len(jobs) >= max_results:
@@ -164,11 +176,14 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                     title_el = await item.query_selector("h3.base-search-card__title")
                     company_el = await item.query_selector("h4.base-search-card__subtitle")
                     location_el = await item.query_selector("span.job-search-card__location")
+                    time_el = await item.query_selector("time")
 
                     job_url = await link_el.get_attribute("href") if link_el else ""
                     title = await _text_or_empty(title_el)
                     company = await _text_or_empty(company_el)
                     location_text = await _text_or_empty(location_el)
+                    posted_text = await _text_or_empty(time_el) or None
+                    posted_at = await time_el.get_attribute("datetime") if time_el else None
 
                     if not title or not job_url:
                         continue
@@ -181,6 +196,8 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                             "location": location_text,
                             "description": "",
                             "job_url": job_url.split("?")[0],
+                            "posted_at": posted_at,
+                            "posted_text": posted_text,
                         }
                     )
 

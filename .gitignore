@@ -20,3 +20,4 @@ resumes/
 
 # Secrets
 .env
+profiles/cucia.yaml
