@@ -3,11 +3,12 @@ import os
 import re
 from datetime import datetime, timezone
 
-from agents.profile_store import load_profile, save_profile
+from src.ai.profile_store import save_profile
+from src.core.config import load_profile
 
 
 def _base_dir() -> str:
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def _agent_log_path(base_dir: str) -> str:
@@ -62,16 +63,45 @@ def _extract_profile_updates(text: str) -> dict:
         if skills:
             updates["skills"] = skills
 
+    keywords_match = re.search(r"\b(keywords?|target roles?)\s*:\s*(.+)$", text, re.IGNORECASE)
+    if keywords_match:
+        keywords = [s.strip() for s in re.split(r"[,\n]", keywords_match.group(2)) if s.strip()]
+        if keywords:
+            updates["keywords"] = keywords
+
     location_match = re.search(r"\b(location|based in|i live in)\s+([a-zA-Z0-9 ,_-]+)", lowered)
     if location_match:
         updates["location"] = location_match.group(2).strip()
+
+    email_match = re.search(r"\b([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b", text, re.IGNORECASE)
+    if email_match:
+        updates["email"] = email_match.group(1).strip()
+
+    phone_match = re.search(r"(\+?\d[\d\s-]{7,}\d)", text)
+    if phone_match:
+        updates["phone"] = phone_match.group(1).strip()
+
+    notice_match = re.search(r"\bnotice(?: period)?\s*[:=]?\s*(\d+)\s*(days|day)?\b", lowered)
+    if notice_match:
+        updates["notice_period_days"] = notice_match.group(1).strip()
+
+    if "authorized to work" in lowered or "work authorization yes" in lowered:
+        updates["work_authorization"] = True
+    if "require sponsorship" in lowered:
+        updates["sponsorship_required"] = True
+    if "do not require sponsorship" in lowered or "no sponsorship" in lowered:
+        updates["sponsorship_required"] = False
+    if "willing to relocate" in lowered:
+        updates["willing_to_relocate"] = True
+    if "not willing to relocate" in lowered:
+        updates["willing_to_relocate"] = False
 
     return updates
 
 
 def _missing_fields(profile: dict) -> list[str]:
     missing = []
-    for field in ("role", "experience", "skills", "location"):
+    for field in ("role", "experience", "skills", "location", "keywords", "email", "phone"):
         value = profile.get(field)
         if not value:
             missing.append(field)
@@ -85,7 +115,7 @@ def _agent_reply(profile: dict, user_text: str) -> str:
         prompt += ", ".join(missing)
         prompt += "."
         return prompt
-    return "Got it. I’ll use this profile to evaluate each job and ask if I’m unsure."
+    return "Got it. I'll use this profile to evaluate jobs and learn from your approvals and rejections."
 
 
 def handle_chat(user_text: str, profile_name: str) -> dict:

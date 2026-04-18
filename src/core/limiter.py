@@ -1,5 +1,5 @@
 from datetime import datetime
-from core.storage import get_daily_apply_count
+from .storage import get_daily_apply_count
 
 
 def can_apply(db_path: str, daily_limit: int) -> bool:

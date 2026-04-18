@@ -1,14 +1,14 @@
 import os
 import sys
 
-from core.async_runner import run
-from core.browser import open_context, close_context, save_storage_state
-from core.config import load_settings
-from core.logger import log
+from .async_runner import run
+from .browser import open_context, close_context, save_storage_state
+from .config import load_settings
+from .logger import log
 
 
 def _base_dir() -> str:
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def get_session_path(base_dir: str, settings: dict, platform: str) -> str:
@@ -17,6 +17,13 @@ def get_session_path(base_dir: str, settings: dict, platform: str) -> str:
     if os.path.isabs(path):
         return path
     return os.path.join(base_dir, path)
+
+
+def _can_prompt_for_login() -> bool:
+    try:
+        return bool(sys.stdin and sys.stdin.isatty())
+    except Exception:
+        return False
 
 
 def ensure_session(settings: dict, platform: str, login_url: str) -> str:
@@ -28,9 +35,19 @@ def ensure_session(settings: dict, platform: str, login_url: str) -> str:
         log("Session file already exists")
         return session_path
 
-    headless = settings.get("app", {}).get("headless", False)
-    if headless and not os.environ.get("DISPLAY"):
-        log(f"No session for {platform} and headless mode enabled. Skipping login.")
+    has_display = bool(os.environ.get("DISPLAY")) or os.name == "nt"
+    if not has_display:
+        log(
+            f"No session for {platform}. No GUI display is available here. "
+            "Save the session from the dashboard or run the session script on the host."
+        )
+        return ""
+
+    if not _can_prompt_for_login():
+        log(
+            f"No session for {platform}. This process is non-interactive, so login cannot be completed here. "
+            "Save the session from the dashboard first."
+        )
         return ""
 
     log(f"No session found for {platform}. Opening login page...")

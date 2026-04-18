@@ -1,10 +1,11 @@
 import os
 from urllib.parse import quote_plus
 
-from core.async_runner import run
-from core.browser import open_context, close_context
-from core.logger import log
-from core.session import ensure_session, get_session_path
+from src.core.async_runner import run
+from src.core.browser import open_context, close_context
+from src.core.logger import log
+from src.core.session import ensure_session, get_session_path
+from src.platforms.linkedin.url_utils import normalize_job_url
 
 
 async def _text_or_empty(el) -> str:
@@ -30,6 +31,33 @@ async def _posted_info(item):
     return posted_at, posted_text
 
 
+async def _easy_apply_flag(item) -> int:
+    selectors = [
+        ".job-card-container__apply-method",
+        ".job-card-list__footer-wrapper",
+        ".job-card-container__footer-wrapper",
+        ".job-card-container__footer-item",
+        ".job-card-list__footer-wrapper li",
+    ]
+    for selector in selectors:
+        elements = await item.query_selector_all(selector)
+        for el in elements:
+            text = (await el.text_content() or "").strip().lower()
+            if "easy apply" in text:
+                return 1
+    try:
+        text = ((await item.text_content()) or "").lower()
+    except Exception:
+        text = ""
+    return 1 if "easy apply" in text else 0
+
+
+def _debug_artifact_path(base_dir: str, filename: str) -> str:
+    data_dir = os.path.join(base_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, filename)
+
+
 def collect_jobs(settings: dict, profile: dict) -> list:
     platform_settings = settings.get("platforms", {}).get("linkedin", {})
     search = platform_settings.get("search", {})
@@ -37,6 +65,7 @@ def collect_jobs(settings: dict, profile: dict) -> list:
     location = search.get("location", "")
     max_results = int(search.get("max_results", 10))
     tpr_seconds = int(search.get("tpr_seconds", 0))
+    easy_apply_only = bool(search.get("easy_apply_only", False))
 
     if not keywords:
         return []
@@ -58,8 +87,13 @@ def collect_jobs(settings: dict, profile: dict) -> list:
         params.append(f"location={loc}")
     if tpr_seconds > 0:
         params.append(f"f_TPR=r{tpr_seconds}")
-    url = f"https://www.linkedin.com/jobs/search/?keywords={query}&location={loc}"
-    log(f"LinkedIn: search url built (max_results={max_results})")
+    if easy_apply_only:
+        params.append("f_AL=true")
+    url = f"https://www.linkedin.com/jobs/search/?{'&'.join(params)}"
+    log(
+        "LinkedIn: search url built "
+        f"(max_results={max_results} easy_apply_only={easy_apply_only})"
+    )
 
     async def _collect():
         playwright, browser, context = await open_context(headless=headless, storage_state_path=session_path)
@@ -71,6 +105,7 @@ def collect_jobs(settings: dict, profile: dict) -> list:
 
             jobs: list = []
             seen = set()
+            easy_apply_count = 0
 
             await page.wait_for_selector(
                 "li[data-occludable-job-id], ul.jobs-search__results-list li, div.base-card",
@@ -111,7 +146,7 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                     job_url = await link_el.get_attribute("href") if link_el else ""
                     if not job_url:
                         continue
-                    job_url = job_url.split("?")[0]
+                    job_url = normalize_job_url(job_url)
                     if job_url in seen:
                         continue
                     seen.add(job_url)
@@ -125,6 +160,9 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                     company = await _text_or_empty(company_el)
                     location_text = await _text_or_empty(location_el)
                     posted_at, posted_text = await _posted_info(item)
+                    easy_apply = await _easy_apply_flag(item)
+                    if easy_apply_only and not easy_apply:
+                        continue
 
                     jobs.append(
                         {
@@ -134,10 +172,12 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                             "location": location_text,
                             "description": "",
                             "job_url": job_url,
+                            "easy_apply": easy_apply,
                             "posted_at": posted_at,
                             "posted_text": posted_text,
                         }
                     )
+                    easy_apply_count += easy_apply
                     if len(jobs) >= max_results:
                         break
 
@@ -164,6 +204,7 @@ def collect_jobs(settings: dict, profile: dict) -> list:
             log(
                 "LinkedIn: search summary: "
                 f"unique_links={len(seen)} collected={len(jobs)} "
+                f"easy_apply={easy_apply_count} "
                 f"max_results={max_results} stagnant_rounds={stagnant_rounds}"
             )
 
@@ -179,11 +220,15 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                     time_el = await item.query_selector("time")
 
                     job_url = await link_el.get_attribute("href") if link_el else ""
+                    job_url = normalize_job_url(job_url)
                     title = await _text_or_empty(title_el)
                     company = await _text_or_empty(company_el)
                     location_text = await _text_or_empty(location_el)
                     posted_text = await _text_or_empty(time_el) or None
                     posted_at = await time_el.get_attribute("datetime") if time_el else None
+                    easy_apply = await _easy_apply_flag(item)
+                    if easy_apply_only and not easy_apply:
+                        continue
 
                     if not title or not job_url:
                         continue
@@ -195,11 +240,13 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                             "company": company,
                             "location": location_text,
                             "description": "",
-                            "job_url": job_url.split("?")[0],
+                            "job_url": job_url,
+                            "easy_apply": easy_apply,
                             "posted_at": posted_at,
                             "posted_text": posted_text,
                         }
                     )
+                    easy_apply_count += easy_apply
 
                     if len(jobs) >= max_results:
                         break
@@ -209,9 +256,12 @@ def collect_jobs(settings: dict, profile: dict) -> list:
                 if "login" in page.url or "checkpoint" in page.url or "authwall" in page.url:
                     log("LinkedIn: likely not authenticated")
                 try:
-                    await page.screenshot(path="/app/data/linkedin_debug.png", full_page=True)
+                    await page.screenshot(
+                        path=_debug_artifact_path(base_dir, "linkedin_debug.png"),
+                        full_page=True,
+                    )
                     html = await page.content()
-                    with open("/app/data/linkedin_debug.html", "w", encoding="utf-8") as f:
+                    with open(_debug_artifact_path(base_dir, "linkedin_debug.html"), "w", encoding="utf-8") as f:
                         f.write(html)
                 except Exception:
                     pass

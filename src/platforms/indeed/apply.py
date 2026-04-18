@@ -1,8 +1,9 @@
 import os
 
-from core.async_runner import run
-from core.browser import open_context, close_context
-from core.session import ensure_session, get_session_path
+from src.core.async_runner import run
+from src.core.browser import close_context, open_context
+from src.core.logger import log
+from src.core.session import ensure_session, get_session_path
 
 
 def apply(job: dict, resume_path: str, settings: dict) -> tuple[str, int] | None:
@@ -10,9 +11,13 @@ def apply(job: dict, resume_path: str, settings: dict) -> tuple[str, int] | None
     if not job_url:
         return None
 
-    ensure_session(settings, "indeed", "https://www.indeed.com/account/login")
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    session_path = get_session_path(base_dir, settings, "indeed")
+    session_path = ensure_session(settings, "indeed", "https://www.indeed.com/account/login")
+    if not session_path:
+        session_path = get_session_path(base_dir, settings, "indeed")
+    if not os.path.exists(session_path):
+        log("Indeed apply: missing session file. Save the Indeed session from the dashboard first.")
+        return ("deferred", 0)
     headless = settings.get("app", {}).get("headless", False)
 
     async def _apply():

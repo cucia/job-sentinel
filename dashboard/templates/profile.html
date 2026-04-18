@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - JobSentinel{% endblock %}
+
+{% block content %}
+{% include "_notice.html" %}
+
+<section class="section section-tight">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Profile and assistant</div>
+      <div class="section-subtitle">Edit your candidate details directly and keep the assistant context in sync.</div>
+    </div>
+  </div>
+  <div class="chat-shell">
+    <div class="chat-profile">
+      <div class="profile-toolbar">
+        <form class="profile-switcher" method="get" action="{{ url_for('profile_page') }}">
+          <label class="field-label" for="profile-picker">Open profile</label>
+          <div class="profile-picker-row">
+            <select class="field-input" id="profile-picker" name="profile">
+              {% for item in profile_names %}
+              <option value="{{ item }}" {{ 'selected' if item == profile_name else '' }}>{{ item }}</option>
+              {% endfor %}
+            </select>
+            <button class="control-toggle compact" type="submit">Load</button>
+          </div>
+        </form>
+      </div>
+
+      <form class="profile-form" method="post" action="{{ url_for('save_profile_details') }}">
+        <div class="profile-title">Profile details</div>
+        <label class="field-label" for="profile_name">Profile file</label>
+        <input class="field-input" id="profile_name" name="profile_name" type="text" value="{{ profile_name }}" placeholder="candidate" />
+
+        <label class="field-label" for="name">Display name</label>
+        <input class="field-input" id="name" name="name" type="text" value="{{ profile.name or '' }}" placeholder="Your Name" />
+
+        <label class="field-label" for="role">Target role</label>
+        <input class="field-input" id="role" name="role" type="text" value="{{ profile.role or '' }}" placeholder="SOC Analyst" />
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="experience">Experience</label>
+            <input class="field-input" id="experience" name="experience" type="text" value="{{ profile.experience or '' }}" placeholder="1 year internship" />
+          </div>
+          <div>
+            <label class="field-label" for="location">Location</label>
+            <input class="field-input" id="location" name="location" type="text" value="{{ profile.location or '' }}" placeholder="India" />
+          </div>
+        </div>
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="email">Email</label>
+            <input class="field-input" id="email" name="email" type="email" value="{{ profile.email or '' }}" placeholder="name@example.com" />
+          </div>
+          <div>
+            <label class="field-label" for="phone">Phone</label>
+            <input class="field-input" id="phone" name="phone" type="text" value="{{ profile.phone or '' }}" placeholder="+91..." />
+          </div>
+        </div>
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="current_company">Current company</label>
+            <input class="field-input" id="current_company" name="current_company" type="text" value="{{ profile.current_company or '' }}" placeholder="Current employer" />
+          </div>
+          <div>
+            <label class="field-label" for="education">Education</label>
+            <input class="field-input" id="education" name="education" type="text" value="{{ profile.education or '' }}" placeholder="B.Tech, BSc, MSc..." />
+          </div>
+        </div>
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="notice_period_days">Notice period</label>
+            <input class="field-input" id="notice_period_days" name="notice_period_days" type="text" value="{{ profile.notice_period_days or '' }}" placeholder="0 or 30" />
+          </div>
+          <div>
+            <label class="field-label" for="available_to_start">Available to start</label>
+            <input class="field-input" id="available_to_start" name="available_to_start" type="text" value="{{ profile.available_to_start or '' }}" placeholder="Immediately or specific date" />
+          </div>
+        </div>
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="current_ctc">Current salary / CTC</label>
+            <input class="field-input" id="current_ctc" name="current_ctc" type="text" value="{{ profile.current_ctc or '' }}" placeholder="Optional" />
+          </div>
+          <div>
+            <label class="field-label" for="expected_ctc">Expected salary / CTC</label>
+            <input class="field-input" id="expected_ctc" name="expected_ctc" type="text" value="{{ profile.expected_ctc or '' }}" placeholder="Optional" />
+          </div>
+        </div>
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="linkedin_url">LinkedIn URL</label>
+            <input class="field-input" id="linkedin_url" name="linkedin_url" type="text" value="{{ profile.linkedin_url or '' }}" placeholder="https://www.linkedin.com/in/..." />
+          </div>
+          <div>
+            <label class="field-label" for="github_url">GitHub URL</label>
+            <input class="field-input" id="github_url" name="github_url" type="text" value="{{ profile.github_url or '' }}" placeholder="https://github.com/..." />
+          </div>
+        </div>
+
+        <label class="field-label" for="portfolio_url">Portfolio URL</label>
+        <input class="field-input" id="portfolio_url" name="portfolio_url" type="text" value="{{ profile.portfolio_url or '' }}" placeholder="https://portfolio.example.com" />
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="work_authorization">Work authorization</label>
+            <select class="field-input" id="work_authorization" name="work_authorization">
+              <option value="" {{ 'selected' if profile.work_authorization in ['', none] else '' }}>Unknown</option>
+              <option value="true" {{ 'selected' if profile.work_authorization is sameas true else '' }}>Yes</option>
+              <option value="false" {{ 'selected' if profile.work_authorization is sameas false else '' }}>No</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="sponsorship_required">Require sponsorship</label>
+            <select class="field-input" id="sponsorship_required" name="sponsorship_required">
+              <option value="" {{ 'selected' if profile.sponsorship_required in ['', none] else '' }}>Unknown</option>
+              <option value="true" {{ 'selected' if profile.sponsorship_required is sameas true else '' }}>Yes</option>
+              <option value="false" {{ 'selected' if profile.sponsorship_required is sameas false else '' }}>No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="willing_to_relocate">Willing to relocate</label>
+            <select class="field-input" id="willing_to_relocate" name="willing_to_relocate">
+              <option value="" {{ 'selected' if profile.willing_to_relocate in ['', none] else '' }}>Unknown</option>
+              <option value="true" {{ 'selected' if profile.willing_to_relocate is sameas true else '' }}>Yes</option>
+              <option value="false" {{ 'selected' if profile.willing_to_relocate is sameas false else '' }}>No</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="willing_to_work_onsite">Comfortable onsite / hybrid</label>
+            <select class="field-input" id="willing_to_work_onsite" name="willing_to_work_onsite">
+              <option value="" {{ 'selected' if profile.willing_to_work_onsite in ['', none] else '' }}>Unknown</option>
+              <option value="true" {{ 'selected' if profile.willing_to_work_onsite is sameas true else '' }}>Yes</option>
+              <option value="false" {{ 'selected' if profile.willing_to_work_onsite is sameas false else '' }}>No</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="split-fields">
+          <div>
+            <label class="field-label" for="willing_to_work_shifts">Comfortable with shifts</label>
+            <select class="field-input" id="willing_to_work_shifts" name="willing_to_work_shifts">
+              <option value="" {{ 'selected' if profile.willing_to_work_shifts in ['', none] else '' }}>Unknown</option>
+              <option value="true" {{ 'selected' if profile.willing_to_work_shifts is sameas true else '' }}>Yes</option>
+              <option value="false" {{ 'selected' if profile.willing_to_work_shifts is sameas false else '' }}>No</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="willing_to_travel">Willing to travel</label>
+            <select class="field-input" id="willing_to_travel" name="willing_to_travel">
+              <option value="" {{ 'selected' if profile.willing_to_travel in ['', none] else '' }}>Unknown</option>
+              <option value="true" {{ 'selected' if profile.willing_to_travel is sameas true else '' }}>Yes</option>
+              <option value="false" {{ 'selected' if profile.willing_to_travel is sameas false else '' }}>No</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="field-label" for="skills">Skills</label>
+        <textarea class="field-textarea" id="skills" name="skills" rows="4" placeholder="SOC&#10;Linux&#10;Networking">{{ profile.skills | join('\n') if profile.skills else '' }}</textarea>
+
+        <label class="field-label" for="keywords">Keywords or target roles</label>
+        <textarea class="field-textarea" id="keywords" name="keywords" rows="4" placeholder="security analyst&#10;soc analyst&#10;cybersecurity">{{ profile.keywords | join('\n') if profile.keywords else '' }}</textarea>
+
+        <button class="control-toggle active" type="submit">Save profile</button>
+      </form>
+    </div>
+
+    <div class="chat-panel">
+      <div class="profile-snapshot">
+        <div class="profile-title">Current profile</div>
+        <div class="profile-item"><strong>Name:</strong> {{ profile.name or profile_name | title }}</div>
+        <div class="profile-item"><strong>Role:</strong> {{ profile.role or "-" }}</div>
+        <div class="profile-item"><strong>Experience:</strong> {{ profile.experience or "-" }}</div>
+        <div class="profile-item"><strong>Email:</strong> {{ profile.email or "-" }}</div>
+        <div class="profile-item"><strong>Phone:</strong> {{ profile.phone or "-" }}</div>
+        <div class="profile-item"><strong>Skills:</strong> {{ profile.skills | join(", ") if profile.skills else "-" }}</div>
+        <div class="profile-item"><strong>Keywords:</strong> {{ profile.keywords | join(", ") if profile.keywords else "-" }}</div>
+        <div class="profile-item"><strong>Location:</strong> {{ profile.location or "-" }}</div>
+        <div class="profile-item"><strong>Notice period:</strong> {{ profile.notice_period_days or "-" }}</div>
+        <div class="profile-item"><strong>Expected salary:</strong> {{ profile.expected_ctc or "-" }}</div>
+        <div class="profile-item"><strong>Work authorization:</strong> {{ profile.work_authorization if profile.work_authorization not in ['', none] else "-" }}</div>
+        <div class="profile-item"><strong>Sponsorship required:</strong> {{ profile.sponsorship_required if profile.sponsorship_required not in ['', none] else "-" }}</div>
+      </div>
+
+      <div class="chat-log">
+        {% if messages %}
+          {% for msg in messages %}
+          <div class="chat-row {{ msg.role }}">
+            <div class="chat-bubble">
+              <div class="chat-meta">{{ msg.role }} | {{ msg.ts }}</div>
+              <div class="chat-text">{{ msg.content }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="chat-empty">Start by telling me your role, experience, skills, and location.</div>
+        {% endif %}
+      </div>
+
+      <form class="chat-form" method="post" action="{{ url_for('agent_chat') }}">
+        <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+        <textarea name="message" rows="3" placeholder="Example: My role is SOC analyst. Skills: Linux, SIEM, networking. I have 1 year experience."></textarea>
+        <button class="control-toggle active" type="submit">Send to assistant</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

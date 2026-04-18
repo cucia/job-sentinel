@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - JobSentinel{% endblock %}
+{% block title %}Overview - JobSentinel{% endblock %}
 
 {% block content %}
 <section class="hero">
   <div class="hero-copy">
     <div class="eyebrow">System overview</div>
-    <h1 class="hero-title">Live control for the job pipeline.</h1>
-    <p class="hero-subtitle">Monitor platform health, review queues, and nudge services without leaving the dashboard.</p>
+    <h1 class="hero-title">Run the job pipeline from a cleaner control room.</h1>
+    <p class="hero-subtitle">Screen the newest search results, check session health, and step into automation or profile setup only when you need it.</p>
     <div class="status-row">
       <span class="status-pill status-ok">Dashboard online</span>
       <span class="status-pill {{ 'status-ok' if docker_available else 'status-warn' }}">Docker {{ 'connected' if docker_available else 'unavailable' }}</span>
       <span class="status-pill">Uptime {{ uptime }}</span>
-      <span class="status-pill">Last update {{ stats.last_updated or '—' }}</span>
+      <span class="status-pill">Last update {{ stats.last_updated or '-' }}</span>
     </div>
   </div>
   <div class="hero-metrics">
@@ -27,21 +27,64 @@
     <div class="metric-card">
       <div class="metric-label">Review pending</div>
       <div class="metric-value">{{ stats.counts.review }}</div>
-      <a class="metric-link" href="{{ url_for('review') }}">View review</a>
+      <a class="metric-link" href="{{ url_for('review') }}">Open review jobs</a>
     </div>
     <div class="metric-card">
-      <div class="metric-label">Queued</div>
-      <div class="metric-value">{{ stats.counts.queued }}</div>
-      <a class="metric-link" href="{{ url_for('queued') }}">View queued</a>
+      <div class="metric-label">Deferred</div>
+      <div class="metric-value">{{ stats.counts.deferred }}</div>
+      <a class="metric-link" href="{{ url_for('deferred') }}">Open deferred jobs</a>
     </div>
+  </div>
+</section>
+
+{% include "_notice.html" %}
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Workspaces</div>
+      <div class="section-subtitle">Move through the dashboard in focused sections instead of one long page.</div>
+    </div>
+  </div>
+  <div class="route-grid">
+    <a class="route-card" href="{{ url_for('automation', profile=profile_name) }}">
+      <div class="route-title">Automation</div>
+      <div class="route-count">{{ 'live' if docker_available else 'check' }}</div>
+      <div class="control-text">Platform toggles, service control, runtime health, and model status.</div>
+    </a>
+    <a class="route-card" href="{{ url_for('sessions_page', profile=profile_name) }}">
+      <div class="route-title">Sessions</div>
+      <div class="route-count">{{ session_ready_count }}</div>
+      <div class="control-text">Session state, LinkedIn login readiness, and browser-backed sign-in flow.</div>
+    </a>
+    <a class="route-card" href="{{ url_for('profile_page', profile=profile_name) }}">
+      <div class="route-title">Profile</div>
+      <div class="route-count">{{ profile.skills | length if profile.skills else 0 }}</div>
+      <div class="control-text">Candidate details, target keywords, and assistant context.</div>
+    </a>
+    <a class="route-card" href="{{ url_for('all_jobs') }}">
+      <div class="route-title">Jobs</div>
+      <div class="route-count">{{ stats.counts.total }}</div>
+      <div class="control-text">Browse recent job history, apply outcomes, and review items from one place.</div>
+    </a>
+    <a class="route-card" href="{{ url_for('review') }}">
+      <div class="route-title">Review</div>
+      <div class="route-count">{{ stats.counts.review }}</div>
+      <div class="control-text">Finish applications that need extra answers or manual review.</div>
+    </a>
+    <a class="route-card" href="{{ url_for('logs') }}">
+      <div class="route-title">Logs</div>
+      <div class="route-count">live</div>
+      <div class="control-text">Trace collectors, apply attempts, and runtime failures.</div>
+    </a>
   </div>
 </section>
 
 <section class="section">
   <div class="section-head">
     <div>
-      <div class="section-title">Quick routes</div>
-      <div class="section-subtitle">Jump straight into the work queues.</div>
+      <div class="section-title">Run snapshot</div>
+      <div class="section-subtitle">Jump straight into the main job outcomes from the latest automation cycles.</div>
     </div>
   </div>
   <div class="route-grid">
@@ -53,166 +96,22 @@
       <div class="route-title">Review</div>
       <div class="route-count">{{ stats.counts.review }}</div>
     </a>
-    <a class="route-card" href="{{ url_for('queued') }}">
-      <div class="route-title">Queued</div>
-      <div class="route-count">{{ stats.counts.queued }}</div>
-    </a>
     <a class="route-card" href="{{ url_for('rejected') }}">
       <div class="route-title">Rejected</div>
       <div class="route-count">{{ stats.counts.rejected }}</div>
     </a>
-    <a class="route-card" href="{{ url_for('all_jobs') }}">
-      <div class="route-title">All jobs</div>
-      <div class="route-count">{{ stats.counts.total }}</div>
+    <a class="route-card" href="{{ url_for('skipped') }}">
+      <div class="route-title">Skipped</div>
+      <div class="route-count">{{ stats.counts.skipped }}</div>
     </a>
-  </div>
-</section>
-
-<section class="section">
-  <div class="section-head">
-    <div>
-      <div class="section-title">Core controls</div>
-      <div class="section-subtitle">Toggle platforms and AI filters for the next crawl cycle.</div>
-    </div>
-  </div>
-  <div class="controls-grid">
-    <div class="control-group">
-      <div class="control-title">AI filter</div>
-      <form method="post" action="/toggle/ai">
-        <button class="control-toggle {{ 'active' if use_ai else '' }}" type="submit">
-          Model
-          <span class="control-state">{{ 'on' if use_ai else 'off' }}</span>
-        </button>
-      </form>
-      <div class="control-meta">
-        <div>Run interval: <strong>{{ run_interval }}s</strong></div>
-        <div>Headless: <strong>{{ 'on' if headless else 'off' }}</strong></div>
-      </div>
-    </div>
-    <div class="control-group">
-      <div class="control-title">Health</div>
-      <div class="health-row">
-        <span class="status-pill status-ok">DB ready</span>
-        <span class="status-pill {{ 'status-ok' if docker_available else 'status-warn' }}">Docker {{ 'ready' if docker_available else 'missing' }}</span>
-      </div>
-      <div class="control-meta">
-        <div>DB size: <strong>{{ (health.db_size / 1024) | round(1) }} KB</strong></div>
-        <div>DB path: <strong>{{ health.db_path }}</strong></div>
-        <div>Sessions: 
-          <strong>
-            {% for key, info in health.session_info.items() %}
-              {{ key }}={{ 'ok' if info.exists else 'missing' }}{% if not loop.last %}, {% endif %}
-            {% endfor %}
-          </strong>
-        </div>
-      </div>
-      <div class="control-text">Session files gate authenticated scraping and apply flows.</div>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="section-head">
-    <div>
-      <div class="section-title">Agent chat</div>
-      <div class="section-subtitle">Tell the assistant about your background and preferences.</div>
-    </div>
-  </div>
-  <div class="chat-shell">
-    <div class="chat-profile">
-      <div class="profile-title">Profile</div>
-      <div class="profile-item"><strong>Name:</strong> {{ profile.name or "Cucia" }}</div>
-      <div class="profile-item"><strong>Role:</strong> {{ profile.role or "—" }}</div>
-      <div class="profile-item"><strong>Experience:</strong> {{ profile.experience or "—" }}</div>
-      <div class="profile-item"><strong>Skills:</strong> {{ profile.skills | join(", ") if profile.skills else "—" }}</div>
-      <div class="profile-item"><strong>Location:</strong> {{ profile.location or "—" }}</div>
-    </div>
-    <div class="chat-panel">
-      <div class="chat-log">
-        {% if messages %}
-          {% for msg in messages %}
-          <div class="chat-row {{ msg.role }}">
-            <div class="chat-bubble">
-              <div class="chat-meta">{{ msg.role }} · {{ msg.ts }}</div>
-              <div class="chat-text">{{ msg.content }}</div>
-            </div>
-          </div>
-          {% endfor %}
-        {% else %}
-          <div class="chat-empty">Start by telling me your role, experience, skills, and location.</div>
-        {% endif %}
-      </div>
-      <form class="chat-form" method="post" action="/agent/chat">
-        <input type="hidden" name="profile_name" value="{{ profile.name or 'cucia' }}" />
-        <textarea name="message" rows="3" placeholder="Example: My role is SOC analyst. Skills: Linux, SIEM, networking. I have 1 year experience."></textarea>
-        <button class="control-toggle active" type="submit">Send to agent</button>
-      </form>
-    </div>
-  </div>
-</section>
-
-<section class="section">
-  <div class="section-head">
-    <div>
-      <div class="section-title">Services</div>
-      <div class="section-subtitle">Start or stop the collectors per platform.</div>
-    </div>
-  </div>
-  <div class="service-grid">
-    <div class="service-card">
-      <div class="service-name">LinkedIn collector</div>
-      <div class="service-status">
-        <span class="status-indicator status-{{ service_labels['jobsentinel-linkedin'] }}"></span>
-        {{ service_labels['jobsentinel-linkedin'] }} · {{ service_status['jobsentinel-linkedin'] }}
-      </div>
-      <div class="service-actions">
-        {% if service_labels['jobsentinel-linkedin'] == 'live' %}
-        <form method="post" action="/service/stop/jobsentinel-linkedin">
-          <button class="control-toggle danger" type="submit">stop</button>
-        </form>
-        {% else %}
-        <form method="post" action="/service/start/jobsentinel-linkedin">
-          <button class="control-toggle" type="submit">start</button>
-        </form>
-        {% endif %}
-      </div>
-    </div>
-    <div class="service-card">
-      <div class="service-name">Indeed collector</div>
-      <div class="service-status">
-        <span class="status-indicator status-{{ service_labels['jobsentinel-indeed'] }}"></span>
-        {{ service_labels['jobsentinel-indeed'] }} · {{ service_status['jobsentinel-indeed'] }}
-      </div>
-      <div class="service-actions">
-        {% if service_labels['jobsentinel-indeed'] == 'live' %}
-        <form method="post" action="/service/stop/jobsentinel-indeed">
-          <button class="control-toggle danger" type="submit">stop</button>
-        </form>
-        {% else %}
-        <form method="post" action="/service/start/jobsentinel-indeed">
-          <button class="control-toggle" type="submit">start</button>
-        </form>
-        {% endif %}
-      </div>
-    </div>
-    <div class="service-card">
-      <div class="service-name">Naukri collector</div>
-      <div class="service-status">
-        <span class="status-indicator status-{{ service_labels['jobsentinel-naukri'] }}"></span>
-        {{ service_labels['jobsentinel-naukri'] }} · {{ service_status['jobsentinel-naukri'] }}
-      </div>
-      <div class="service-actions">
-        {% if service_labels['jobsentinel-naukri'] == 'live' %}
-        <form method="post" action="/service/stop/jobsentinel-naukri">
-          <button class="control-toggle danger" type="submit">stop</button>
-        </form>
-        {% else %}
-        <form method="post" action="/service/start/jobsentinel-naukri">
-          <button class="control-toggle" type="submit">start</button>
-        </form>
-        {% endif %}
-      </div>
-    </div>
+    <a class="route-card" href="{{ url_for('deferred') }}">
+      <div class="route-title">Deferred</div>
+      <div class="route-count">{{ stats.counts.deferred }}</div>
+    </a>
+    <a class="route-card" href="{{ url_for('queued') }}">
+      <div class="route-title">Queued</div>
+      <div class="route-count">{{ stats.counts.queued }}</div>
+    </a>
   </div>
 </section>
 {% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - JobSentinel{% endblock %}
+
+{% block content %}
+{% include "_notice.html" %}
+
+<section class="section section-tight">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Runtime logs</div>
+      <div class="section-subtitle">Recent application logs written by the collectors and controller.</div>
+    </div>
+    <div class="section-actions">
+      <a class="tab" href="{{ url_for('logs') }}">Refresh</a>
+    </div>
+  </div>
+</section>
+
+<section class="log-shell">
+  {% if log_lines %}
+    {% for line in log_lines %}
+    <div class="log-line">{{ line }}</div>
+    {% endfor %}
+  {% else %}
+    <div class="log-empty">No logs yet. Start a collector and the recent runtime output will appear here.</div>
+  {% endif %}
+</section>
+{% endblock %}

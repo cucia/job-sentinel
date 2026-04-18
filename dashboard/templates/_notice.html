@@ -1,0 +1,7 @@
+{% if notice %}
+<section class="section section-tight">
+  <div class="notice-banner notice-{{ notice_level if notice_level in ['ok', 'warn'] else 'ok' }}">
+    {{ notice }}
+  </div>
+</section>
+{% endif %}

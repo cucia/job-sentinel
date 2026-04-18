@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Sessions - JobSentinel{% endblock %}
+
+{% block content %}
+{% include "_notice.html" %}
+
+<section class="section section-tight">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Session manager</div>
+      <div class="section-subtitle">Open a login window, save browser state, validate login health, and reuse sessions from the dashboard.</div>
+    </div>
+  </div>
+  <div class="session-shell">
+    <div class="session-summary">
+      <div class="profile-title">Interactive login</div>
+      {% if session_info.supported %}
+      <div class="status-pill status-ok">Supported in this environment</div>
+      <div class="control-text">Click Start login for a platform, finish sign-in in the opened browser, then come back here and click Save session.</div>
+      {% if vnc_url %}
+      <div class="session-note">Open <a class="link" href="{{ vnc_url }}" target="_blank" rel="noreferrer">the browser view</a> to interact with the container login window.</div>
+      {% endif %}
+      {% else %}
+      <div class="status-pill status-warn">Unavailable in this environment</div>
+      <div class="control-text">{{ session_info.reason }}</div>
+      {% if vnc_url %}
+      <div class="session-note">After rebuilding the dashboard container, open <a class="link" href="{{ vnc_url }}" target="_blank" rel="noreferrer">the browser view</a> and try again.</div>
+      {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="session-grid">
+      {% for platform, info in session_info.platforms.items() %}
+      <div class="session-card">
+        <div class="session-head">
+          <div class="session-title">{{ platform | capitalize }}</div>
+          {% if info.pending %}
+          <span class="status-pill status-warn">Login open</span>
+          {% elif info.login_status == 'ready' %}
+          <span class="status-pill status-ok">Ready</span>
+          {% elif info.login_status in ['expired', 'error', 'challenge'] %}
+          <span class="status-pill status-warn">{{ info.login_status }}</span>
+          {% elif info.exists %}
+          <span class="status-pill status-ok">Saved</span>
+          {% else %}
+          <span class="status-pill">Missing</span>
+          {% endif %}
+        </div>
+
+        <div class="session-meta">
+          <div>Login state: <strong>{{ info.login_status }}</strong></div>
+          <div>Status detail: <strong>{{ info.login_detail }}</strong></div>
+          <div>Checked: <strong>{{ info.checked_at or '-' }}</strong></div>
+          <div>Path: <strong>{{ info.path }}</strong></div>
+          <div>Size: <strong>{{ (info.size / 1024) | round(1) }} KB</strong></div>
+          <div>Updated: <strong>{{ info.updated_at or '-' }}</strong></div>
+        </div>
+
+        <div class="session-actions">
+          {% if info.pending %}
+          <form method="post" action="{{ url_for('session_save', platform=platform) }}">
+            <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+            <button class="control-toggle active" type="submit">Save session</button>
+          </form>
+          <form method="post" action="{{ url_for('session_cancel', platform=platform) }}">
+            <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+            <button class="control-toggle danger" type="submit">Cancel</button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url_for('session_start', platform=platform) }}">
+            <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+            <button class="control-toggle {{ 'active' if info.exists else '' }}" type="submit">Start login</button>
+          </form>
+          <form method="post" action="{{ url_for('session_check', platform=platform) }}">
+            <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+            <button class="control-toggle" type="submit">Check login</button>
+          </form>
+          {% if info.exists %}
+          <form method="post" action="{{ url_for('session_delete', platform=platform) }}">
+            <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+            <button class="control-toggle danger" type="submit">Delete session</button>
+          </form>
+          {% endif %}
+          {% endif %}
+        </div>
+
+        {% if platform == 'linkedin' %}
+        <form class="session-credentials-form" method="post" action="{{ url_for('session_linkedin_login') }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <div class="session-note">Direct LinkedIn login for container-backed runs. Credentials are used for this request only and are not written into repo files.</div>
+          <label class="field-label" for="linkedin-email">LinkedIn email</label>
+          <input class="field-input" id="linkedin-email" name="linkedin_email" type="email" autocomplete="username" placeholder="you@example.com" />
+          <label class="field-label" for="linkedin-password">LinkedIn password</label>
+          <input class="field-input" id="linkedin-password" name="linkedin_password" type="password" autocomplete="current-password" placeholder="Password" />
+          <button class="control-toggle active" type="submit">Login and save session</button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -3,15 +3,24 @@
 {% block title %}Jobs - JobSentinel{% endblock %}
 
 {% block content %}
+{% include "_notice.html" %}
+
 <section class="section section-tight">
   <div class="section-head">
     <div>
       <div class="section-title">{{ current_status|capitalize }} jobs</div>
-      <div class="section-subtitle">Manage the queue with approve/reject actions.</div>
+      <div class="section-subtitle">Manage recent job history with real apply attempts, review retries, and manual confirmation.</div>
     </div>
     <div class="section-actions">
       <a class="tab export-pill" href="/export.csv?status={{ current_status }}&platform={{ current_platform }}">Export CSV</a>
     </div>
+  </div>
+  <div class="tabs">
+    {% for s in statuses %}
+    <a class="tab {{ 'active' if current_status == s else '' }}" href="{{ url_for('jobs', status=s) }}{% if current_platform != 'all' %}?platform={{ current_platform }}{% endif %}">
+      {{ 'all jobs' if s == 'all' else s }}
+    </a>
+    {% endfor %}
   </div>
   <div class="tabs">
     {% for p in platforms %}
@@ -44,7 +53,7 @@
             Seen: {{ job.created_at }}
             {% endif %}
             {% if job.applied_at %}
-            · Applied: {{ job.applied_at }}
+            | Applied: {{ job.applied_at }}
             {% endif %}
           </div>
         </div>
@@ -53,6 +62,17 @@
       <div class="card-foot">
         <div class="pill-group">
           <div class="pill">{{ job.platform or "unknown" }}</div>
+          {% if job.score is not none %}
+          <div class="pill">score {{ job.score }}</div>
+          {% endif %}
+          {% if job.decision %}
+          <div class="pill">{{ job.decision }}</div>
+          {% endif %}
+          {% if job.feedback_label %}
+          <div class="pill {% if job.feedback_label in ['approved', 'applied', 'positive'] %}pill-positive{% else %}pill-negative{% endif %}">
+            {{ job.feedback_label }}
+          </div>
+          {% endif %}
           {% if job.easy_apply == 1 %}
           <div class="pill pill-easy">easy apply</div>
           {% endif %}
@@ -65,24 +85,36 @@
           {% endif %}
           <a class="link" href="{{ open_url }}" target="_blank">Open job</a>
           {% endif %}
+
+          {% if job.status != "applied" and job.status != "rejected" %}
+          <form method="post" action="{{ url_for('attempt_apply') }}">
+            <input type="hidden" name="job_key" value="{{ job.job_key }}" />
+            <input type="hidden" name="current_status" value="{{ current_status }}" />
+            <input type="hidden" name="current_platform" value="{{ current_platform }}" />
+            <button class="btn" type="submit">Attempt apply</button>
+          </form>
+          {% endif %}
+
           <form method="post" action="{{ url_for('approve') }}">
             <input type="hidden" name="job_key" value="{{ job.job_key }}" />
             <input type="hidden" name="current_status" value="{{ current_status }}" />
             <input type="hidden" name="current_platform" value="{{ current_platform }}" />
-            <button class="btn btn-approve" type="submit">Approve</button>
+            <button class="btn btn-approve" type="submit">{{ 'Approve and retry' if pipeline_mode == 'direct_latest' else 'Approve' }}</button>
           </form>
+
           <form method="post" action="{{ url_for('reject') }}">
             <input type="hidden" name="job_key" value="{{ job.job_key }}" />
             <input type="hidden" name="current_status" value="{{ current_status }}" />
             <input type="hidden" name="current_platform" value="{{ current_platform }}" />
             <button class="btn btn-reject" type="submit">Reject</button>
           </form>
+
           {% if job.status != "applied" %}
           <form method="post" action="{{ url_for('mark_applied') }}">
             <input type="hidden" name="job_key" value="{{ job.job_key }}" />
             <input type="hidden" name="current_status" value="{{ current_status }}" />
             <input type="hidden" name="current_platform" value="{{ current_platform }}" />
-            <button class="btn btn-applied" type="submit">Mark applied</button>
+            <button class="btn btn-applied" type="submit">Confirm applied</button>
           </form>
           {% endif %}
         </div>
@@ -94,7 +126,7 @@
   <section class="empty">
     <div class="empty-card">
       <div class="empty-title">No jobs yet</div>
-      <p class="empty-text">The crawler will add new roles here every minute.</p>
+      <p class="empty-text">The collectors will add the newest roles here on the next cycle.</p>
     </div>
   </section>
   {% endif %}

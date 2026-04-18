@@ -2,9 +2,12 @@ app:
   headless: false
   run_interval_seconds: 60
   resume_path: resumes/resume.pdf
+  pipeline_mode: direct_latest
+  latest_results_limit: 100
   apply_all: true
-  use_ai: false
+  use_ai: true
   use_policy: false
+  easy_apply_first: true
   entry_level_only: false
   seniority_blocklist:
     - senior
@@ -18,6 +21,7 @@ app:
 
 storage:
   db_path: data/jobsentinel.db
+  history_limit: 400
 
 limits:
   daily_applications: 10
@@ -30,6 +34,8 @@ policy:
 ai:
   min_score: 70
   uncertainty_margin: 5
+  use_llm: false
+  llm_model: llama3.2:latest
 
 platforms:
   enabled:
@@ -44,20 +50,20 @@ platforms:
     search:
       keywords:
         - security
-        
       location: India
-      max_results: 99
+      max_results: 100
       tpr_seconds: 0
+      easy_apply_only: false
   indeed:
     search:
       keywords:
         - cybersecurity
         - soc analyst
       location: India
-      max_results: 20
+      max_results: 100
   naukri:
     search:
       keywords:
         - security
       location: India
-      max_results: 2000
+      max_results: 100

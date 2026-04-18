@@ -1,4 +1,19 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: jobsentinel-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
   jobsentinel-linkedin:
     build: .
     command: ["/app/scripts/start-xvfb.sh", "python", "-m", "core.controller", "--platforms", "linkedin"]
@@ -6,6 +21,7 @@ services:
       - .env
     environment:
       - JOBSENTINEL_PLATFORMS=linkedin
+      - OLLAMA_HOST=http://ollama:11434
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
@@ -16,6 +32,7 @@ services:
       - .env
     environment:
       - JOBSENTINEL_PLATFORMS=naukri
+      - OLLAMA_HOST=http://ollama:11434
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
@@ -26,17 +43,25 @@ services:
       - .env
     environment:
       - JOBSENTINEL_PLATFORMS=indeed
+      - OLLAMA_HOST=http://ollama:11434
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
   dashboard:
     build: .
-    command: ["python", "-m", "dashboard.app"]
+    command: ["/app/scripts/start-dashboard-gui.sh", "python", "-m", "dashboard.app"]
     env_file:
       - .env
+    environment:
+      - JOBSENTINEL_VNC_URL=http://localhost:6080/vnc.html?autoconnect=1&resize=scale
+      - OLLAMA_HOST=http://ollama:11434
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "5000:5000"
+      - "6080:6080"
+
+volumes:
+  ollama_data:

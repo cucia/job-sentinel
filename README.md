@@ -17,24 +17,46 @@ The goal is to scale to many platforms while keeping the core workflow stable an
 4) Apply automatically; anything blocked goes to **Review**.
 5) Show results in the dashboard (tabs + CSV export).
 
-Core modules:
-- `core/` controller, storage, settings, logging
-- `platforms/` platform-specific collectors/apply/enrichers
-- `dashboard/` UI + CSV export
+## Project Structure
+
+```
+src/
+├── ai/                    # AI/ML layer
+│   ├── scorer.py         # Job scoring (rule-based + LLM)
+│   ├── llm.py            # Ollama client for LLM evaluation
+│   ├── form_filler.py    # Application form automation
+│   └── chat.py           # Profile chat assistant
+├── core/                 # Business logic
+│   ├── controller.py     # Main pipeline
+│   ├── storage.py         # SQLite database
+│   ├── config.py          # Settings management
+│   └── ...
+├── platforms/            # Platform integrations
+│   ├── linkedin/
+│   ├── indeed/
+│   └── naukri/
+└── services/             # External services
+    └── session_manager.py
+dashboard/               # Flask UI
+configs/                 # Configuration files
+```
 
 ## Containers
 
-Separate services per platform:
+Services defined in docker-compose.yml:
+- `ollama` - Local LLM server (optional)
 - `jobsentinel-linkedin` (LinkedIn only)
 - `jobsentinel-indeed` (Indeed only)
 - `jobsentinel-naukri` (Naukri only)
 - `dashboard` (UI)
 
-Start specific services:
+Start services:
 ```powershell
+# With LLM evaluation
+docker-compose up -d ollama jobsentinel-linkedin dashboard
+
+# Without LLM
 docker-compose up -d jobsentinel-linkedin dashboard
-docker-compose up -d jobsentinel-indeed
-docker-compose up -d jobsentinel-naukri
 ```
 
 ## Settings
@@ -49,6 +71,13 @@ app:
   use_policy: false
   entry_level_only: false
   enrich_before_ai: true
+
+ai:
+  use_llm: false              # Enable Ollama for job scoring
+  llm_model: llama3.2:latest # Ollama model to use
+  min_score: 70
+  uncertainty_margin: 5
+
 platforms:
   enabled:
     - linkedin
@@ -60,10 +89,19 @@ platforms:
 The dashboard has toggles for:
 - Platform on/off (LinkedIn, Indeed, Naukri)
 - AI filter on/off
+- LLM evaluation on/off (requires Ollama)
 
 These toggles update `configs/settings.yaml`.
 
-Service controls are available in the dashboard for local Docker start/stop.
+## LLM Integration (Optional)
+
+JobSentinel can use a local LLM via Ollama for smarter job matching:
+
+1. Start Ollama: `docker-compose up -d ollama`
+2. Pull a model: `docker exec jobsentinel-ollama ollama pull llama3.2:latest`
+3. Enable in settings: `ai.use_llm: true`
+
+Supported models: llama3.2, mistral, phi4
 
 ## Data locations
 

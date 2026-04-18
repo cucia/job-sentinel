@@ -1,9 +1,10 @@
 import os
 
-from core.async_runner import run
-from core.browser import close_context, open_context
-from core.logger import log
-from core.session import ensure_session, get_session_path
+from src.core.async_runner import run
+from src.core.browser import close_context, open_context
+from src.core.logger import log
+from src.core.session import ensure_session, get_session_path
+from src.platforms.linkedin.url_utils import normalize_job_url
 
 
 async def _first_text(page, selectors: list[str]) -> str:
@@ -18,13 +19,17 @@ async def _first_text(page, selectors: list[str]) -> str:
 
 
 def enrich_job(job: dict, settings: dict) -> dict:
-    job_url = (job.get("job_url") or "").strip()
+    job_url = normalize_job_url(job.get("job_url"))
     if not job_url:
         return {}
 
-    ensure_session(settings, "linkedin", "https://www.linkedin.com/login")
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    session_path = get_session_path(base_dir, settings, "linkedin")
+    session_path = ensure_session(settings, "linkedin", "https://www.linkedin.com/login")
+    if not session_path:
+        session_path = get_session_path(base_dir, settings, "linkedin")
+    if not os.path.exists(session_path):
+        log("LinkedIn enrich: missing session file. Save the LinkedIn session from the dashboard first.")
+        return {}
     headless = settings.get("app", {}).get("headless", False)
 
     async def _enrich():

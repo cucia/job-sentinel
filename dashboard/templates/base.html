@@ -17,12 +17,12 @@
         </div>
       </div>
       <nav class="nav">
-        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
-        <a class="nav-link" href="{{ url_for('applied') }}">Applied</a>
-        <a class="nav-link" href="{{ url_for('review') }}">Review</a>
-        <a class="nav-link" href="{{ url_for('queued') }}">Queued</a>
-        <a class="nav-link" href="{{ url_for('rejected') }}">Rejected</a>
-        <a class="nav-link" href="{{ url_for('all_jobs') }}">All Jobs</a>
+        <a class="nav-link {{ 'active' if current_page == 'overview' else '' }}" href="{{ url_for('index', profile=profile_name) if profile_name is defined else url_for('index') }}">Overview</a>
+        <a class="nav-link {{ 'active' if current_page == 'automation' else '' }}" href="{{ url_for('automation', profile=profile_name) if profile_name is defined else url_for('automation') }}">Automation</a>
+        <a class="nav-link {{ 'active' if current_page == 'sessions' else '' }}" href="{{ url_for('sessions_page', profile=profile_name) if profile_name is defined else url_for('sessions_page') }}">Sessions</a>
+        <a class="nav-link {{ 'active' if current_page == 'profile' else '' }}" href="{{ url_for('profile_page', profile=profile_name) if profile_name is defined else url_for('profile_page') }}">Profile</a>
+        <a class="nav-link {{ 'active' if current_page == 'jobs' else '' }}" href="{{ url_for('all_jobs') }}">Jobs</a>
+        <a class="nav-link {{ 'active' if current_page == 'logs' else '' }}" href="{{ url_for('logs', profile=profile_name) if profile_name is defined else url_for('logs') }}">Logs</a>
       </nav>
       <div class="tabs">
         {% if show_export %}

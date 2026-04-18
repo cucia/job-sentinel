@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Automation - JobSentinel{% endblock %}
+
+{% block content %}
+{% include "_notice.html" %}
+
+<section class="section section-tight">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Automation control</div>
+      <div class="section-subtitle">Toggle platforms, control services, and watch runtime health from one focused page.</div>
+    </div>
+  </div>
+  <div class="controls-grid">
+    <div class="control-group">
+      <div class="control-title">Platforms</div>
+      <div class="toggle-stack">
+        {% for platform in ["linkedin", "indeed", "naukri"] %}
+        <form method="post" action="{{ url_for('toggle_platform', platform=platform) }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <button class="control-toggle {{ 'active' if platform_enabled[platform] else '' }}" type="submit">
+            {{ platform | capitalize }}
+            <span class="control-state">{{ 'on' if platform_enabled[platform] else 'off' }}</span>
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+      <div class="control-text">Enabled platforms are picked up by the next crawl cycle.</div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-title">AI screening</div>
+      <form method="post" action="{{ url_for('toggle_ai') }}">
+        <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+        <button class="control-toggle {{ 'active' if use_ai else '' }}" type="submit">
+          Model
+          <span class="control-state">{{ 'on' if use_ai else 'off' }}</span>
+        </button>
+      </form>
+      <div class="control-meta">
+        <div>Run interval: <strong>{{ run_interval }}s</strong></div>
+        <div>Headless: <strong>{{ 'on' if headless else 'off' }}</strong></div>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-title">LLM evaluation (Ollama)</div>
+      <form method="post" action="{{ url_for('toggle_llm') }}">
+        <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+        <button class="control-toggle {{ 'active' if use_llm else '' }}" type="submit">
+          LLM
+          <span class="control-state">{{ 'on' if use_llm else 'off' }}</span>
+        </button>
+      </form>
+      <div class="control-meta">
+        <div>Ollama: <strong>{{ 'connected' if ollama_status.available else 'unavailable' }}</strong></div>
+        <div>Model: <strong>{{ llm_model }}</strong></div>
+        <div>Available models:
+          <strong>
+            {% if ollama_status.models %}
+              {{ ollama_status.models[:3] | join(', ') }}
+              {% if ollama_status.models | length > 3 %}...{% endif %}
+            {% else %}
+              none loaded
+            {% endif %}
+          </strong>
+        </div>
+      </div>
+      <div class="control-text">Use local LLM for job scoring. Requires Ollama container running.</div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-title">Pipeline</div>
+      <div class="control-meta">
+        <div>Mode: <strong>{{ pipeline_mode }}</strong></div>
+        <div>Latest batch: <strong>{{ latest_results_limit }} jobs</strong></div>
+        <div>History window: <strong>{{ history_limit }} jobs</strong></div>
+        <div>Easy apply first: <strong>{{ 'on' if easy_apply_first else 'off' }}</strong></div>
+        <div>LinkedIn easy-apply-only search: <strong>{{ 'on' if linkedin_easy_apply_only else 'off' }}</strong></div>
+      </div>
+      <div class="control-text">Direct mode screens the newest search results and applies in the same cycle instead of filling a long queue first.</div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-title">Health</div>
+      <div class="health-row">
+        <span class="status-pill status-ok">DB ready</span>
+        <span class="status-pill {{ 'status-ok' if docker_available else 'status-warn' }}">Docker {{ 'ready' if docker_available else 'missing' }}</span>
+      </div>
+      <div class="control-meta">
+        <div>DB size: <strong>{{ (health.db_size / 1024) | round(1) }} KB</strong></div>
+        <div>DB path: <strong>{{ health.db_path }}</strong></div>
+        <div>Sessions:
+          <strong>
+            {% for key, info in health.session_info.items() %}
+              {{ key }}={{ 'ok' if info.exists else 'missing' }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </strong>
+        </div>
+      </div>
+      <div class="control-text">Session files gate authenticated scraping and apply flows.</div>
+    </div>
+
+    <div class="control-group">
+      <div class="control-title">Learning loop</div>
+      <div class="control-meta">
+        <div>Approved feedback: <strong>{{ model_info.approved_count }}</strong></div>
+        <div>Trained examples: <strong>{{ model_info.trained_examples }}</strong></div>
+        <div>Learned features: <strong>{{ model_info.feature_count }}</strong></div>
+        <div>Model bias: <strong>{{ model_info.bias }}</strong></div>
+      </div>
+      <div class="control-text">Manual review actions still feed the model, and approved review jobs can be pushed straight back into a real apply attempt.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Services</div>
+      <div class="section-subtitle">Start or stop the collectors per platform.</div>
+    </div>
+  </div>
+  <div class="service-grid">
+    <div class="service-card">
+      <div class="service-name">LinkedIn collector</div>
+      <div class="service-status">
+        <span class="status-indicator status-{{ service_labels['jobsentinel-linkedin'] }}"></span>
+        {{ service_labels['jobsentinel-linkedin'] }} - {{ service_status['jobsentinel-linkedin'] }}
+      </div>
+      <div class="service-actions">
+        {% if service_labels['jobsentinel-linkedin'] == 'live' %}
+        <form method="post" action="{{ url_for('stop_service', service='jobsentinel-linkedin') }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <button class="control-toggle danger" type="submit">stop</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('start_service', service='jobsentinel-linkedin') }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <button class="control-toggle" type="submit">start</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="service-card">
+      <div class="service-name">Indeed collector</div>
+      <div class="service-status">
+        <span class="status-indicator status-{{ service_labels['jobsentinel-indeed'] }}"></span>
+        {{ service_labels['jobsentinel-indeed'] }} - {{ service_status['jobsentinel-indeed'] }}
+      </div>
+      <div class="service-actions">
+        {% if service_labels['jobsentinel-indeed'] == 'live' %}
+        <form method="post" action="{{ url_for('stop_service', service='jobsentinel-indeed') }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <button class="control-toggle danger" type="submit">stop</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('start_service', service='jobsentinel-indeed') }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <button class="control-toggle" type="submit">start</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="service-card">
+      <div class="service-name">Naukri collector</div>
+      <div class="service-status">
+        <span class="status-indicator status-{{ service_labels['jobsentinel-naukri'] }}"></span>
+        {{ service_labels['jobsentinel-naukri'] }} - {{ service_status['jobsentinel-naukri'] }}
+      </div>
+      <div class="service-actions">
+        {% if service_labels['jobsentinel-naukri'] == 'live' %}
+        <form method="post" action="{{ url_for('stop_service', service='jobsentinel-naukri') }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <button class="control-toggle danger" type="submit">stop</button>
+        </form>
+        {% else %}
+        <form method="post" action="{{ url_for('start_service', service='jobsentinel-naukri') }}">
+          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+          <button class="control-toggle" type="submit">start</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

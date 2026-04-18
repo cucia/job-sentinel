@@ -1,10 +1,10 @@
 import os
 from urllib.parse import quote_plus
 
-from core.async_runner import run
-from core.browser import open_context, close_context
-from core.logger import log
-from core.session import ensure_session, get_session_path
+from src.core.async_runner import run
+from src.core.browser import open_context, close_context
+from src.core.logger import log
+from src.core.session import ensure_session, get_session_path
 
 
 def collect_jobs(settings: dict, profile: dict) -> list:

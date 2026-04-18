@@ -1,6 +1,23 @@
 name: Your Name
 role: Cybersecurity Fresher
 experience: 3 months internship
+email: ""
+phone: ""
+current_company: ""
+notice_period_days: ""
+current_ctc: ""
+expected_ctc: ""
+available_to_start: ""
+education: ""
+linkedin_url: ""
+github_url: ""
+portfolio_url: ""
+work_authorization: ""
+sponsorship_required: ""
+willing_to_relocate: ""
+willing_to_work_onsite: ""
+willing_to_work_shifts: ""
+willing_to_travel: ""
 skills:
   - SOC
   - Linux
