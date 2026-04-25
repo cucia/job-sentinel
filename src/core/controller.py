@@ -6,6 +6,7 @@ import time
 from datetime import datetime, timezone
 
 from src.ai.scorer import evaluate_job
+from src.ai.agents_wrapper import evaluate_job_with_agents
 from src.core.config import load_profile, load_settings
 from src.core.limiter import can_apply
 from src.core.logger import log
@@ -274,9 +275,13 @@ def _run_queue_cycle(
             continue
 
         if use_ai:
-            min_score = settings.get("ai", {}).get("min_score", 70)
-            uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
-            decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
+            use_agents = settings.get("ai", {}).get("use_agents", False)
+            if use_agents:
+                decision = evaluate_job_with_agents(job, profile, settings)
+            else:
+                min_score = settings.get("ai", {}).get("min_score", 70)
+                uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
+                decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
             if not decision["apply"] and not decision["confused"]:
                 update_job(db_path, job["job_key"], status="skipped")
                 record_decision(db_path, job["job_key"], "ai_reject", decision["score"])
@@ -471,9 +476,13 @@ def _run_direct_latest_cycle(
         score = None
         priority_score = 0.0
         if use_ai:
-            min_score = settings.get("ai", {}).get("min_score", 70)
-            uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
-            decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
+            use_agents = settings.get("ai", {}).get("use_agents", False)
+            if use_agents:
+                decision = evaluate_job_with_agents(job, profile, settings)
+            else:
+                min_score = settings.get("ai", {}).get("min_score", 70)
+                uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
+                decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
             score = decision["score"]
             priority_score = float(decision.get("priority_score") or score or 0)
             if not decision["apply"] and not decision["confused"]:

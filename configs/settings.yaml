@@ -36,6 +36,7 @@ ai:
   uncertainty_margin: 5
   use_llm: false
   llm_model: llama3.2:latest
+  use_agents: false  # Set to true to enable multi-agent system (requires use_llm: true)
 
 platforms:
   enabled:

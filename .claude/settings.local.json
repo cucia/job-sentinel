@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(mv core/* src/core/)",
-      "Bash(mv platforms/* src/platforms/)"
-    ]
-  }
-}
