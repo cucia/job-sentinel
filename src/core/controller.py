@@ -7,6 +7,10 @@ from datetime import datetime, timezone
 
 from src.ai.scorer import evaluate_job
 from src.ai.agents_wrapper import evaluate_job_with_agents
+from src.ai.quality_scorer import evaluate_fit
+from src.ai.shortlist_predictor import predict_shortlist
+from src.ai.adaptive_strategy import get_adaptive_strategy
+from src.ai.feedback_learner import get_feedback_learner
 from src.core.config import load_profile, load_settings
 from src.core.limiter import can_apply
 from src.core.logger import log
@@ -213,16 +217,26 @@ def _run_queue_cycle(
     use_policy = settings.get("app", {}).get("use_policy", False)
     enrich_before_ai = settings.get("app", {}).get("enrich_before_ai", True)
     entry_level_only = settings.get("app", {}).get("entry_level_only", True)
+    use_quality_filter = settings.get("ai", {}).get("use_quality_filter", False)
     seniority_blocklist = settings.get("app", {}).get(
         "seniority_blocklist",
         ["senior", "lead", "manager", "principal", "director", "head", "staff", "architect"],
     )
     if not os.path.isabs(resume_path):
         resume_path = os.path.join(base_dir, resume_path)
+
+    # Initialize intelligent filtering components
+    adaptive_strategy = None
+    feedback_learner = None
+    if use_quality_filter:
+        adaptive_strategy = get_adaptive_strategy()
+        feedback_learner = get_feedback_learner()
+        log("Quality filtering enabled with adaptive strategy and feedback learning")
+
     log(
         "Cycle config: "
         f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
-        f"enrich_before_ai={enrich_before_ai} entry_level_only={entry_level_only} "
+        f"enrich_before_ai={enrich_before_ai} entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
         f"daily_limit={daily_limit}"
     )
 
@@ -282,6 +296,37 @@ def _run_queue_cycle(
                 min_score = settings.get("ai", {}).get("min_score", 70)
                 uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
                 decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
+
+            # Apply quality filtering if enabled
+            if use_quality_filter:
+                quality_score = evaluate_fit(profile, job)
+                shortlist_prediction = predict_shortlist(profile, job, quality_score)
+                strategy_decision = adaptive_strategy.should_apply(quality_score, shortlist_prediction)
+
+                # Get feedback learner recommendations
+                recommendations = feedback_learner.get_recommendations(job, profile)
+
+                # Log quality metrics
+                log(
+                    f"Quality check: title={job.get('title')} "
+                    f"overall={quality_score['overall_score']:.0f} tier={quality_score['quality_tier']} "
+                    f"probability={shortlist_prediction['probability']:.2%} "
+                    f"strategy={strategy_decision['strategy_applied']} "
+                    f"confidence_boost={recommendations['confidence_boost']:+.2f}"
+                )
+
+                # Skip if quality filter rejects
+                if not strategy_decision["should_apply"]:
+                    update_job(db_path, job["job_key"], status="skipped")
+                    record_decision(db_path, job["job_key"], "quality_reject", quality_score["overall_score"])
+                    log(
+                        f"Quality rejected: {strategy_decision['reason']} "
+                        f"(skill_match={quality_score['skill_match_percent']:.0f}% "
+                        f"role_align={quality_score['role_alignment']:.0f}%)"
+                    )
+                    ai_skipped_count += 1
+                    continue
+
             if not decision["apply"] and not decision["confused"]:
                 update_job(db_path, job["job_key"], status="skipped")
                 record_decision(db_path, job["job_key"], "ai_reject", decision["score"])
@@ -407,6 +452,7 @@ def _run_direct_latest_cycle(
     enrich_before_ai = settings.get("app", {}).get("enrich_before_ai", True)
     easy_apply_first = settings.get("app", {}).get("easy_apply_first", True)
     entry_level_only = settings.get("app", {}).get("entry_level_only", True)
+    use_quality_filter = settings.get("ai", {}).get("use_quality_filter", False)
     seniority_blocklist = settings.get("app", {}).get(
         "seniority_blocklist",
         ["senior", "lead", "manager", "principal", "director", "head", "staff", "architect"],
@@ -414,12 +460,20 @@ def _run_direct_latest_cycle(
     if not os.path.isabs(resume_path):
         resume_path = os.path.join(base_dir, resume_path)
 
+    # Initialize intelligent filtering components
+    adaptive_strategy = None
+    feedback_learner = None
+    if use_quality_filter:
+        adaptive_strategy = get_adaptive_strategy()
+        feedback_learner = get_feedback_learner()
+        log("Quality filtering enabled with adaptive strategy and feedback learning")
+
     log(
         "Direct cycle config: "
         f"latest_results_limit={latest_results_limit} history_limit={history_limit} "
         f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
         f"enrich_before_ai={enrich_before_ai} easy_apply_first={easy_apply_first} "
-        f"entry_level_only={entry_level_only} "
+        f"entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
         f"daily_limit={daily_limit}"
     )
     log(
@@ -494,6 +548,36 @@ def _run_direct_latest_cycle(
                 decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
             score = decision["score"]
             priority_score = float(decision.get("priority_score") or score or 0)
+
+            # Apply quality filtering if enabled
+            if use_quality_filter:
+                quality_score = evaluate_fit(profile, job)
+                shortlist_prediction = predict_shortlist(profile, job, quality_score)
+                strategy_decision = adaptive_strategy.should_apply(quality_score, shortlist_prediction)
+
+                # Get feedback learner recommendations
+                recommendations = feedback_learner.get_recommendations(job, profile)
+
+                # Log quality metrics
+                log(
+                    f"Quality check: title={job.get('title')} "
+                    f"overall={quality_score['overall_score']:.0f} tier={quality_score['quality_tier']} "
+                    f"probability={shortlist_prediction['probability']:.2%} "
+                    f"strategy={strategy_decision['strategy_applied']} "
+                    f"confidence_boost={recommendations['confidence_boost']:+.2f}"
+                )
+
+                # Skip if quality filter rejects
+                if not strategy_decision["should_apply"]:
+                    upsert_job(db_path, job, status="skipped", score=quality_score["overall_score"], decision="quality_reject")
+                    log(
+                        f"Quality rejected: {strategy_decision['reason']} "
+                        f"(skill_match={quality_score['skill_match_percent']:.0f}% "
+                        f"role_align={quality_score['role_alignment']:.0f}%)"
+                    )
+                    counts["ai_skipped"] += 1
+                    continue
+
             if not decision["apply"] and not decision["confused"]:
                 upsert_job(db_path, job, status="skipped", score=score, decision="ai_reject")
                 log(
