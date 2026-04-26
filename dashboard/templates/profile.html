@@ -30,6 +30,18 @@
 
       <form class="profile-form" method="post" action="{{ url_for('save_profile_details') }}">
         <div class="profile-title">Profile details</div>
+
+        <!-- Resume Upload Section -->
+        <div class="resume-upload-section" style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px;">
+          <div class="profile-title" style="font-size: 14px; margin-bottom: 10px;">Quick Start: Upload Resume</div>
+          <form method="post" action="{{ url_for('upload_resume') }}" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+            <input type="hidden" name="profile_name" value="{{ profile_name }}" />
+            <input type="file" name="resume" accept=".pdf,.docx,.txt" required style="flex: 1;" />
+            <button class="control-toggle compact" type="submit">Parse Resume</button>
+          </form>
+          <div style="font-size: 12px; color: #666; margin-top: 5px;">Upload your resume to auto-fill profile fields (PDF, DOCX, or TXT)</div>
+        </div>
+
         <label class="field-label" for="profile_name">Profile file</label>
         <input class="field-input" id="profile_name" name="profile_name" type="text" value="{{ profile_name }}" placeholder="candidate" />
 
