@@ -11,6 +11,8 @@ from src.ai.quality_scorer import evaluate_fit
 from src.ai.shortlist_predictor import predict_shortlist
 from src.ai.adaptive_strategy import get_adaptive_strategy
 from src.ai.feedback_learner import get_feedback_learner
+from src.ai.visibility_predictor import predict_visibility
+from src.ai.diversity_controller import get_diversity_controller
 from src.core.config import load_profile, load_settings
 from src.core.limiter import can_apply
 from src.core.logger import log
@@ -218,6 +220,8 @@ def _run_queue_cycle(
     enrich_before_ai = settings.get("app", {}).get("enrich_before_ai", True)
     entry_level_only = settings.get("app", {}).get("entry_level_only", True)
     use_quality_filter = settings.get("ai", {}).get("use_quality_filter", False)
+    use_visibility_filter = settings.get("ai", {}).get("use_visibility_filter", False)
+    use_diversity_control = settings.get("ai", {}).get("use_diversity_control", False)
     seniority_blocklist = settings.get("app", {}).get(
         "seniority_blocklist",
         ["senior", "lead", "manager", "principal", "director", "head", "staff", "architect"],
@@ -228,15 +232,20 @@ def _run_queue_cycle(
     # Initialize intelligent filtering components
     adaptive_strategy = None
     feedback_learner = None
+    diversity_controller = None
     if use_quality_filter:
         adaptive_strategy = get_adaptive_strategy()
         feedback_learner = get_feedback_learner()
         log("Quality filtering enabled with adaptive strategy and feedback learning")
+    if use_diversity_control:
+        diversity_controller = get_diversity_controller()
+        log("Diversity control enabled")
 
     log(
         "Cycle config: "
         f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
         f"enrich_before_ai={enrich_before_ai} entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
+        f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control} "
         f"daily_limit={daily_limit}"
     )
 
@@ -296,6 +305,36 @@ def _run_queue_cycle(
                 min_score = settings.get("ai", {}).get("min_score", 70)
                 uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
                 decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
+
+            # Apply diversity control if enabled
+            if use_diversity_control and diversity_controller:
+                diversity_check = diversity_controller.should_skip_for_diversity(job, settings)
+                if diversity_check["should_skip"]:
+                    update_job(db_path, job["job_key"], status="skipped")
+                    record_decision(db_path, job["job_key"], "diversity_reject", 0)
+                    log(f"Diversity rejected: {diversity_check['reason']}")
+                    ai_skipped_count += 1
+                    continue
+
+            # Apply visibility filter if enabled
+            if use_visibility_filter:
+                platform = job.get("platform", "unknown")
+                timing = {"hour_of_day": datetime.now().hour, "day_of_week": datetime.now().weekday()}
+                visibility_prediction = predict_visibility(job, platform, timing)
+
+                log(
+                    f"Visibility check: title={job.get('title')} "
+                    f"probability={visibility_prediction['visibility_probability']:.2%} "
+                    f"recommendation={visibility_prediction['recommendation']}"
+                )
+
+                # Skip if visibility is too low
+                if visibility_prediction["recommendation"] == "skip":
+                    update_job(db_path, job["job_key"], status="skipped")
+                    record_decision(db_path, job["job_key"], "visibility_reject", int(visibility_prediction["visibility_probability"] * 100))
+                    log(f"Visibility rejected: low visibility probability ({visibility_prediction['visibility_probability']:.2%})")
+                    ai_skipped_count += 1
+                    continue
 
             # Apply quality filtering if enabled
             if use_quality_filter:
@@ -453,6 +492,8 @@ def _run_direct_latest_cycle(
     easy_apply_first = settings.get("app", {}).get("easy_apply_first", True)
     entry_level_only = settings.get("app", {}).get("entry_level_only", True)
     use_quality_filter = settings.get("ai", {}).get("use_quality_filter", False)
+    use_visibility_filter = settings.get("ai", {}).get("use_visibility_filter", False)
+    use_diversity_control = settings.get("ai", {}).get("use_diversity_control", False)
     seniority_blocklist = settings.get("app", {}).get(
         "seniority_blocklist",
         ["senior", "lead", "manager", "principal", "director", "head", "staff", "architect"],
@@ -463,10 +504,14 @@ def _run_direct_latest_cycle(
     # Initialize intelligent filtering components
     adaptive_strategy = None
     feedback_learner = None
+    diversity_controller = None
     if use_quality_filter:
         adaptive_strategy = get_adaptive_strategy()
         feedback_learner = get_feedback_learner()
         log("Quality filtering enabled with adaptive strategy and feedback learning")
+    if use_diversity_control:
+        diversity_controller = get_diversity_controller()
+        log("Diversity control enabled")
 
     log(
         "Direct cycle config: "
@@ -474,6 +519,7 @@ def _run_direct_latest_cycle(
         f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
         f"enrich_before_ai={enrich_before_ai} easy_apply_first={easy_apply_first} "
         f"entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
+        f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control} "
         f"daily_limit={daily_limit}"
     )
     log(
@@ -548,6 +594,42 @@ def _run_direct_latest_cycle(
                 decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
             score = decision["score"]
             priority_score = float(decision.get("priority_score") or score or 0)
+
+            # Apply recency boost to priority score
+            if use_visibility_filter:
+                posted_text = (job.get("posted_text") or "").lower()
+                if any(term in posted_text for term in ["just now", "few minutes", "few hours", "today"]):
+                    recency_boost = 10
+                    priority_score += recency_boost
+                    log(f"Recency boost: +{recency_boost} for fresh posting")
+
+            # Apply diversity control if enabled
+            if use_diversity_control and diversity_controller:
+                diversity_check = diversity_controller.should_skip_for_diversity(job, settings)
+                if diversity_check["should_skip"]:
+                    upsert_job(db_path, job, status="skipped", score=score, decision="diversity_reject")
+                    log(f"Diversity rejected: {diversity_check['reason']}")
+                    counts["ai_skipped"] += 1
+                    continue
+
+            # Apply visibility filter if enabled
+            if use_visibility_filter:
+                platform = job.get("platform", "unknown")
+                timing = {"hour_of_day": datetime.now().hour, "day_of_week": datetime.now().weekday()}
+                visibility_prediction = predict_visibility(job, platform, timing)
+
+                log(
+                    f"Visibility check: title={job.get('title')} "
+                    f"probability={visibility_prediction['visibility_probability']:.2%} "
+                    f"recommendation={visibility_prediction['recommendation']}"
+                )
+
+                # Skip if visibility is too low
+                if visibility_prediction["recommendation"] == "skip":
+                    upsert_job(db_path, job, status="skipped", score=int(visibility_prediction["visibility_probability"] * 100), decision="visibility_reject")
+                    log(f"Visibility rejected: low visibility probability ({visibility_prediction['visibility_probability']:.2%})")
+                    counts["ai_skipped"] += 1
+                    continue
 
             # Apply quality filtering if enabled
             if use_quality_filter:
