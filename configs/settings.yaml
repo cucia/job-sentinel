@@ -34,9 +34,25 @@ policy:
 ai:
   min_score: 70
   uncertainty_margin: 5
+
+  # Multi-agent system
+  use_agents: true  # Set to true to enable multi-agent system
+
+  # Cloud AI Configuration (recommended)
+  use_cloud: true  # Set to true to use cloud AI providers
+  provider: groq  # Options: openai, anthropic, gemini, groq, openrouter, together, ollama
+  model: llama-3.1-70b-versatile  # See FREE_AI_SETUP.md for free options
+  # api_key: sk-...  # Optional: set API key in environment (OPENAI_API_KEY, GROQ_API_KEY, etc.)
+
+  # FREE OPTIONS:
+  # provider: groq, model: llama-3.1-70b-versatile (14,400 req/day FREE)
+  # provider: openrouter, model: google/gemini-flash-1.5 (FREE)
+  # provider: gemini, model: gemini-1.5-flash (1,500 req/day FREE)
+  # provider: together, model: meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo ($25 credits)
+
+  # Local LLM (Ollama) - fallback if use_cloud: false
   use_llm: false
   llm_model: llama3.2:latest
-  use_agents: false  # Set to true to enable multi-agent system (requires use_llm: true)
 
 platforms:
   enabled:

@@ -15,6 +15,16 @@
       <a class="tab export-pill" href="/export.csv?status={{ current_status }}&platform={{ current_platform }}">Export CSV</a>
     </div>
   </div>
+
+  <div class="search-filter-bar">
+    <input type="text" id="jobSearch" class="search-input" placeholder="Search jobs by title, company, or location...">
+    <select id="sortBy" class="filter-select">
+      <option value="date">Sort by Date</option>
+      <option value="score">Sort by Score</option>
+      <option value="company">Sort by Company</option>
+    </select>
+  </div>
+
   <div class="tabs">
     {% for s in statuses %}
     <a class="tab {{ 'active' if current_status == s else '' }}" href="{{ url_for('jobs', status=s) }}{% if current_platform != 'all' %}?platform={{ current_platform }}{% endif %}">
@@ -33,9 +43,9 @@
 
 <div class="content" id="jobs">
   {% if jobs %}
-  <div class="grid">
+  <div class="grid" id="jobsGrid">
     {% for job in jobs %}
-    <article class="card">
+    <article class="card job-card" data-title="{{ job.title|lower }}" data-company="{{ (job.company or '')|lower }}" data-location="{{ (job.location or '')|lower }}" data-score="{{ job.score or 0 }}" data-date="{{ job.created_at }}">
       <div class="card-head">
         <div>
           <div class="title">{{ job.title }}</div>
@@ -131,4 +141,52 @@
   </section>
   {% endif %}
 </div>
+
+<script>
+// Search and filter functionality
+const searchInput = document.getElementById('jobSearch');
+const sortSelect = document.getElementById('sortBy');
+const jobsGrid = document.getElementById('jobsGrid');
+const jobCards = jobsGrid ? Array.from(jobsGrid.querySelectorAll('.job-card')) : [];
+
+if (searchInput) {
+  searchInput.addEventListener('input', filterJobs);
+}
+
+if (sortSelect) {
+  sortSelect.addEventListener('change', sortJobs);
+}
+
+function filterJobs() {
+  const searchTerm = searchInput.value.toLowerCase();
+
+  jobCards.forEach(card => {
+    const title = card.dataset.title || '';
+    const company = card.dataset.company || '';
+    const location = card.dataset.location || '';
+
+    const matches = title.includes(searchTerm) ||
+                   company.includes(searchTerm) ||
+                   location.includes(searchTerm);
+
+    card.style.display = matches ? '' : 'none';
+  });
+}
+
+function sortJobs() {
+  const sortBy = sortSelect.value;
+
+  jobCards.sort((a, b) => {
+    if (sortBy === 'score') {
+      return parseInt(b.dataset.score) - parseInt(a.dataset.score);
+    } else if (sortBy === 'company') {
+      return (a.dataset.company || '').localeCompare(b.dataset.company || '');
+    } else {
+      return (b.dataset.date || '').localeCompare(a.dataset.date || '');
+    }
+  });
+
+  jobCards.forEach(card => jobsGrid.appendChild(card));
+}
+</script>
 {% endblock %}

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import docker
 from flask import Flask, request, redirect, url_for, render_template, Response
+from flask_socketio import SocketIO
 
 from src.ai.profile_store import save_profile
 from src.ai.scorer import update_model
@@ -36,6 +37,8 @@ from src.core.storage import (
 )
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'jobsentinel-secret-key-change-in-production'
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 START_TIME = time.time()
 
 
@@ -292,6 +295,148 @@ def _load_recent_text_log(base_dir: str, limit: int = 200) -> list[str]:
         return [line.rstrip("\n") for line in f.readlines()[-limit:]]
 
 
+def _get_agent_activity(db_path: str) -> list:
+    """Get recent agent activity from jobs table."""
+    activity = []
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute("""
+            SELECT title, company, decision, score, created_at, ai_result
+            FROM jobs
+            WHERE ai_result IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT 20
+        """).fetchall()
+
+        for row in rows:
+            title, company, decision, score, created_at, ai_result_json = row
+
+            # Parse timestamp
+            try:
+                from datetime import datetime
+                dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                timestamp = dt.strftime('%H:%M:%S')
+            except:
+                timestamp = created_at[:8] if created_at else 'N/A'
+
+            # Determine agent and action
+            agent = "JobEvaluatorAgent"
+            action = f"Evaluated '{title[:30]}...' at {company or 'Unknown'}"
+            result = decision or "REVIEW"
+
+            activity.append({
+                'timestamp': timestamp,
+                'agent': agent,
+                'action': action,
+                'result': result
+            })
+
+    return activity
+
+
+def _get_analytics_data(db_path: str) -> dict:
+    """Get analytics data for charts and metrics."""
+    from datetime import datetime, timedelta
+
+    with sqlite3.connect(db_path) as conn:
+        # Pipeline data
+        pipeline_data = []
+        for status in ['total', 'queued', 'review', 'applied', 'rejected', 'skipped']:
+            if status == 'total':
+                count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+            else:
+                count = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = ?", (status,)).fetchone()[0]
+            pipeline_data.append(count)
+
+        # Trends data (last 7 days)
+        trends_labels = []
+        trends_data = []
+        for i in range(6, -1, -1):
+            date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
+            trends_labels.append(date)
+            count = conn.execute(
+                "SELECT COUNT(*) FROM jobs WHERE status = 'applied' AND substr(applied_at, 1, 10) = ?",
+                (date,)
+            ).fetchone()[0]
+            trends_data.append(count)
+
+        # Platform data
+        platform_labels = []
+        platform_data = []
+        platforms = conn.execute(
+            "SELECT platform, COUNT(*) FROM jobs WHERE status = 'applied' GROUP BY platform"
+        ).fetchall()
+        for platform, count in platforms:
+            platform_labels.append((platform or 'unknown').capitalize())
+            platform_data.append(count)
+
+        # Agent stats
+        total_evals = conn.execute("SELECT COUNT(*) FROM jobs WHERE score IS NOT NULL").fetchone()[0] or 1
+
+        avg_confidence = conn.execute(
+            "SELECT AVG(CAST(json_extract(ai_result, '$.confidence') AS INTEGER)) FROM jobs WHERE ai_result IS NOT NULL"
+        ).fetchone()[0] or 0
+
+        apply_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE decision = 'APPLY'").fetchone()[0] or 0
+        review_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE decision = 'REVIEW'").fetchone()[0] or 0
+
+        applied_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'applied'").fetchone()[0] or 0
+        rejected_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE status = 'rejected'").fetchone()[0] or 0
+
+        success_rate = round((applied_count / max(applied_count + rejected_count, 1)) * 100, 1)
+
+        agent_stats = {
+            'total_evaluations': total_evals,
+            'avg_confidence': round(avg_confidence, 1),
+            'apply_count': apply_count,
+            'apply_rate': round((apply_count / total_evals) * 100, 1),
+            'review_count': review_count,
+            'review_rate': round((review_count / total_evals) * 100, 1),
+            'success_rate': success_rate
+        }
+
+        # Recent decisions
+        recent_decisions = []
+        rows = conn.execute("""
+            SELECT title, company, platform, score, decision, ai_result, created_at
+            FROM jobs
+            WHERE ai_result IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT 10
+        """).fetchall()
+
+        for row in rows:
+            title, company, platform, score, decision, ai_result_json, created_at = row
+            ai_result = {}
+            if ai_result_json:
+                try:
+                    import json
+                    ai_result = json.loads(ai_result_json)
+                except:
+                    pass
+
+            recent_decisions.append({
+                'job_title': title or 'Unknown',
+                'company': company or 'Unknown',
+                'platform': (platform or 'unknown').capitalize(),
+                'score': score or 0,
+                'confidence': ai_result.get('confidence', 0),
+                'decision': decision or 'REVIEW',
+                'reasoning': ai_result.get('reasoning', ''),
+                'match_factors': ai_result.get('match_factors', [])[:3],
+                'concerns': ai_result.get('concerns', [])[:3]
+            })
+
+    return {
+        'pipeline_data': pipeline_data,
+        'trends_labels': trends_labels,
+        'trends_data': trends_data,
+        'platform_labels': platform_labels,
+        'platform_data': platform_data,
+        'agent_stats': agent_stats,
+        'recent_decisions': recent_decisions
+    }
+
+
 def _dashboard_context(base_dir: str, settings: dict, db_path: str) -> dict:
     enabled = settings.get("platforms", {}).get("enabled", [])
     platform_enabled = {
@@ -430,9 +575,31 @@ def _run_dashboard_apply(base_dir: str, settings: dict, db_path: str, job: dict)
 
 @app.route("/")
 def index():
+    # Redirect to command center as the new default
+    return redirect(url_for('command_center'))
+
+
+@app.route("/command-center")
+def command_center():
     base_dir, settings, db_path = _load_settings_and_db()
     context = _dashboard_context(base_dir, settings, db_path)
-    return render_template("index.html", current_page="overview", show_export=False, **context)
+
+    # Get jobs for queue (review, queued, deferred)
+    jobs = list_jobs(db_path, statuses=['review', 'queued', 'deferred'], limit=50)
+
+    # Get recent agent activity (mock for now, will be populated by real agent logs)
+    agent_activity = _get_agent_activity(db_path)
+
+    # Get daily limit
+    limits_daily = settings.get('limits', {}).get('daily_applications', 10)
+
+    context.update({
+        'jobs': jobs,
+        'agent_activity': agent_activity,
+        'limits_daily': limits_daily
+    })
+
+    return render_template("command_center.html", current_page="command", show_export=False, **context)
 
 
 @app.route("/automation")
@@ -440,6 +607,18 @@ def automation():
     base_dir, settings, db_path = _load_settings_and_db()
     context = _dashboard_context(base_dir, settings, db_path)
     return render_template("automation.html", current_page="automation", show_export=False, **context)
+
+
+@app.route("/analytics")
+def analytics():
+    base_dir, settings, db_path = _load_settings_and_db()
+    context = _dashboard_context(base_dir, settings, db_path)
+
+    # Get analytics data
+    analytics_data = _get_analytics_data(db_path)
+    context.update(analytics_data)
+
+    return render_template("analytics.html", current_page="analytics", show_export=False, **context)
 
 
 @app.route("/sessions")
@@ -454,6 +633,77 @@ def profile_page():
     base_dir, settings, db_path = _load_settings_and_db()
     context = _dashboard_context(base_dir, settings, db_path)
     return render_template("profile.html", current_page="profile", show_export=False, **context)
+
+
+@app.post("/bulk-approve")
+def bulk_approve():
+    base_dir, settings, db_path = _load_settings_and_db()
+    data = request.get_json()
+    job_keys = data.get('job_keys', [])
+
+    for job_key in job_keys:
+        _apply_feedback_learning(base_dir, db_path, job_key, "approved", "bulk")
+        if _pipeline_mode(settings) == "direct_latest":
+            job = get_job(db_path, job_key)
+            if job:
+                _run_dashboard_apply(base_dir, settings, db_path, job)
+        else:
+            update_job(db_path, job_key, status="queued")
+
+    return {"status": "success", "count": len(job_keys)}
+
+
+@app.post("/bulk-reject")
+def bulk_reject():
+    base_dir, settings, db_path = _load_settings_and_db()
+    data = request.get_json()
+    job_keys = data.get('job_keys', [])
+
+    for job_key in job_keys:
+        _apply_feedback_learning(base_dir, db_path, job_key, "rejected", "bulk")
+        update_job(db_path, job_key, status="rejected")
+
+    return {"status": "success", "count": len(job_keys)}
+
+
+@app.post("/quick-approve")
+def quick_approve():
+    base_dir, settings, db_path = _load_settings_and_db()
+    data = request.get_json()
+    job_key = data.get('job_key')
+
+    if job_key:
+        _apply_feedback_learning(base_dir, db_path, job_key, "approved", "quick")
+        if _pipeline_mode(settings) == "direct_latest":
+            job = get_job(db_path, job_key)
+            if job:
+                _run_dashboard_apply(base_dir, settings, db_path, job)
+        else:
+            update_job(db_path, job_key, status="queued")
+
+    return {"status": "success"}
+
+
+@app.post("/quick-reject")
+def quick_reject():
+    base_dir, settings, db_path = _load_settings_and_db()
+    data = request.get_json()
+    job_key = data.get('job_key')
+
+    if job_key:
+        _apply_feedback_learning(base_dir, db_path, job_key, "rejected", "quick")
+        update_job(db_path, job_key, status="rejected")
+
+    return {"status": "success"}
+
+
+@app.post("/toggle/easy-apply")
+def toggle_easy_apply():
+    base_dir, settings, db_path = _load_settings_and_db()
+    app_cfg = settings.setdefault("app", {})
+    app_cfg["easy_apply_first"] = not bool(app_cfg.get("easy_apply_first", True))
+    save_settings(base_dir, settings)
+    return {"status": "success"}
 
 
 @app.route("/applied")
@@ -865,7 +1115,15 @@ def stop_service(service: str):
 
 
 def main() -> None:
-    app.run(host="0.0.0.0", port=5000)
+    # Start background updates for WebSocket
+    base_dir = _base_dir()
+    settings = load_settings(base_dir)
+    db_path = _resolve_db_path(base_dir, settings)
+
+    from dashboard.websocket_handler import start_background_updates
+    start_background_updates(socketio, db_path, interval=10)
+
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)
 
 
 if __name__ == "__main__":

@@ -27,14 +27,30 @@ class BaseAgent:
     def _call_llm(self, system_prompt: str, user_prompt: str, temperature: float = 0.2) -> str:
         """Call the LLM with error handling."""
         try:
-            return chat(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ],
-                model=self.llm_model,
-                temperature=temperature,
-            )
+            # Check if using cloud provider
+            use_cloud = self.settings.get("ai", {}).get("use_cloud", False)
+
+            if use_cloud:
+                from src.ai.cloud_llm import create_llm_client
+                client = create_llm_client(self.settings)
+                return client.chat(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    temperature=temperature,
+                )
+            else:
+                # Use local Ollama
+                from src.ai.llm import chat
+                return chat(
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    model=self.llm_model,
+                    temperature=temperature,
+                )
         except Exception as exc:
             raise RuntimeError(f"{self.agent_name} LLM call failed: {exc}")
 

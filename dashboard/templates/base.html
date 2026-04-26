@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}JobSentinel{% endblock %}</title>
   <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="stylesheet" href="/static/command_center.css" />
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
   <div class="page">
@@ -13,21 +15,21 @@
         <div class="brand-mark">JS</div>
         <div>
           <div class="brand-title">JobSentinel</div>
-          <div class="brand-subtitle">Entry-level cybersecurity sweep</div>
+          <div class="brand-subtitle">AI-Powered Job Application System</div>
         </div>
       </div>
       <nav class="nav">
-        <a class="nav-link {{ 'active' if current_page == 'overview' else '' }}" href="{{ url_for('index', profile=profile_name) if profile_name is defined else url_for('index') }}">Overview</a>
-        <a class="nav-link {{ 'active' if current_page == 'automation' else '' }}" href="{{ url_for('automation', profile=profile_name) if profile_name is defined else url_for('automation') }}">Automation</a>
-        <a class="nav-link {{ 'active' if current_page == 'sessions' else '' }}" href="{{ url_for('sessions_page', profile=profile_name) if profile_name is defined else url_for('sessions_page') }}">Sessions</a>
-        <a class="nav-link {{ 'active' if current_page == 'profile' else '' }}" href="{{ url_for('profile_page', profile=profile_name) if profile_name is defined else url_for('profile_page') }}">Profile</a>
+        <a class="nav-link {{ 'active' if current_page == 'command' else '' }}" href="{{ url_for('command_center', profile=profile_name) if profile_name is defined else url_for('command_center') }}">Command Center</a>
+        <a class="nav-link {{ 'active' if current_page == 'analytics' else '' }}" href="{{ url_for('analytics', profile=profile_name) if profile_name is defined else url_for('analytics') }}">Analytics</a>
         <a class="nav-link {{ 'active' if current_page == 'jobs' else '' }}" href="{{ url_for('all_jobs') }}">Jobs</a>
+        <a class="nav-link {{ 'active' if current_page == 'profile' else '' }}" href="{{ url_for('profile_page', profile=profile_name) if profile_name is defined else url_for('profile_page') }}">Profile</a>
         <a class="nav-link {{ 'active' if current_page == 'logs' else '' }}" href="{{ url_for('logs', profile=profile_name) if profile_name is defined else url_for('logs') }}">Logs</a>
       </nav>
       <div class="tabs">
         {% if show_export %}
         <a class="tab export-pill" href="/export.csv?status={{ current_status or 'all' }}">export csv</a>
         {% endif %}
+        <span class="status-pill status-ok" id="wsStatus">Live</span>
       </div>
     </header>
 
@@ -35,5 +37,39 @@
         {% block content %}{% endblock %}
     </main>
   </div>
+
+  <script>
+    // WebSocket connection for real-time updates
+    const socket = io();
+    const wsStatus = document.getElementById('wsStatus');
+
+    socket.on('connect', () => {
+      console.log('WebSocket connected');
+      if (wsStatus) {
+        wsStatus.textContent = 'Live';
+        wsStatus.className = 'status-pill status-ok';
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('WebSocket disconnected');
+      if (wsStatus) {
+        wsStatus.textContent = 'Offline';
+        wsStatus.className = 'status-pill status-warn';
+      }
+    });
+
+    socket.on('stats_update', (data) => {
+      console.log('Stats update received:', data);
+    });
+
+    socket.on('job_update', (data) => {
+      console.log('Job update received:', data);
+    });
+
+    socket.on('recent_jobs_update', (data) => {
+      console.log('Recent jobs update:', data);
+    });
+  </script>
 </body>
 </html>

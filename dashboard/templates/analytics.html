@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - JobSentinel{% endblock %}
+
+{% block content %}
+{% include "_notice.html" %}
+
+<section class="section section-tight">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Agent Intelligence & Analytics</div>
+      <div class="section-subtitle">Real-time insights into AI agent decisions, application trends, and performance metrics.</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Application Pipeline</div>
+      <div class="section-subtitle">Visual breakdown of job flow through the system</div>
+    </div>
+  </div>
+  <div class="chart-container">
+    <canvas id="pipelineChart"></canvas>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Application Trends</div>
+      <div class="section-subtitle">Daily application activity over the last 7 days</div>
+    </div>
+  </div>
+  <div class="chart-container">
+    <canvas id="trendsChart"></canvas>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Agent Performance</div>
+      <div class="section-subtitle">AI decision accuracy and confidence metrics</div>
+    </div>
+  </div>
+  <div class="analytics-grid">
+    <div class="analytics-card">
+      <div class="analytics-label">Average Confidence</div>
+      <div class="analytics-value">{{ agent_stats.avg_confidence }}%</div>
+      <div class="analytics-meta">Across {{ agent_stats.total_evaluations }} evaluations</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Apply Rate</div>
+      <div class="analytics-value">{{ agent_stats.apply_rate }}%</div>
+      <div class="analytics-meta">{{ agent_stats.apply_count }} of {{ agent_stats.total_evaluations }} jobs</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Review Rate</div>
+      <div class="analytics-value">{{ agent_stats.review_rate }}%</div>
+      <div class="analytics-meta">{{ agent_stats.review_count }} jobs need human review</div>
+    </div>
+    <div class="analytics-card">
+      <div class="analytics-label">Success Rate</div>
+      <div class="analytics-value">{{ agent_stats.success_rate }}%</div>
+      <div class="analytics-meta">Applied / (Applied + Rejected)</div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Platform Performance</div>
+      <div class="section-subtitle">Application success by platform</div>
+    </div>
+  </div>
+  <div class="chart-container">
+    <canvas id="platformChart"></canvas>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Recent Agent Decisions</div>
+      <div class="section-subtitle">Latest AI evaluations with reasoning</div>
+    </div>
+  </div>
+  <div class="agent-decisions">
+    {% if recent_decisions %}
+      {% for decision in recent_decisions %}
+      <div class="decision-card">
+        <div class="decision-head">
+          <div>
+            <div class="decision-title">{{ decision.job_title }}</div>
+            <div class="decision-meta">{{ decision.company }} - {{ decision.platform }}</div>
+          </div>
+          <span class="badge status-{{ decision.decision|lower }}">{{ decision.decision }}</span>
+        </div>
+        <div class="decision-body">
+          <div class="decision-score-row">
+            <div class="score-item">
+              <span class="score-label">Match Score</span>
+              <div class="score-bar">
+                <div class="score-fill" style="width: {{ decision.score }}%; background: {{ 'linear-gradient(90deg, #22c55e, #0ea5a8)' if decision.score >= 70 else 'linear-gradient(90deg, #f59e0b, #ef4444)' }}"></div>
+              </div>
+              <span class="score-value">{{ decision.score }}/100</span>
+            </div>
+            <div class="score-item">
+              <span class="score-label">Confidence</span>
+              <div class="score-bar">
+                <div class="score-fill" style="width: {{ decision.confidence }}%; background: linear-gradient(90deg, #7c3aed, #0ea5a8)"></div>
+              </div>
+              <span class="score-value">{{ decision.confidence }}/100</span>
+            </div>
+          </div>
+          {% if decision.reasoning %}
+          <div class="decision-reasoning">
+            <strong>Reasoning:</strong> {{ decision.reasoning }}
+          </div>
+          {% endif %}
+          {% if decision.match_factors %}
+          <div class="decision-factors">
+            <strong>Match Factors:</strong>
+            <div class="factor-pills">
+              {% for factor in decision.match_factors %}
+              <span class="factor-pill factor-positive">{{ factor }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% if decision.concerns %}
+          <div class="decision-factors">
+            <strong>Concerns:</strong>
+            <div class="factor-pills">
+              {% for concern in decision.concerns %}
+              <span class="factor-pill factor-negative">{{ concern }}</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="empty-card">
+      <div class="empty-title">No agent decisions yet</div>
+      <p class="empty-text">AI evaluations will appear here once jobs are processed.</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Pipeline Funnel Chart
+const pipelineCtx = document.getElementById('pipelineChart').getContext('2d');
+new Chart(pipelineCtx, {
+  type: 'bar',
+  data: {
+    labels: ['Collected', 'Queued', 'Review', 'Applied', 'Rejected', 'Skipped'],
+    datasets: [{
+      label: 'Jobs',
+      data: {{ pipeline_data | tojson }},
+      backgroundColor: [
+        'rgba(124, 58, 237, 0.7)',
+        'rgba(14, 165, 168, 0.7)',
+        'rgba(245, 158, 11, 0.7)',
+        'rgba(34, 197, 94, 0.7)',
+        'rgba(239, 68, 68, 0.7)',
+        'rgba(107, 114, 128, 0.7)'
+      ],
+      borderColor: [
+        'rgba(124, 58, 237, 1)',
+        'rgba(14, 165, 168, 1)',
+        'rgba(245, 158, 11, 1)',
+        'rgba(34, 197, 94, 1)',
+        'rgba(239, 68, 68, 1)',
+        'rgba(107, 114, 128, 1)'
+      ],
+      borderWidth: 2,
+      borderRadius: 8
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: { beginAtZero: true }
+    }
+  }
+});
+
+// Trends Chart
+const trendsCtx = document.getElementById('trendsChart').getContext('2d');
+new Chart(trendsCtx, {
+  type: 'line',
+  data: {
+    labels: {{ trends_labels | tojson }},
+    datasets: [{
+      label: 'Applications',
+      data: {{ trends_data | tojson }},
+      borderColor: 'rgba(14, 165, 168, 1)',
+      backgroundColor: 'rgba(14, 165, 168, 0.1)',
+      fill: true,
+      tension: 0.4,
+      borderWidth: 3,
+      pointRadius: 5,
+      pointBackgroundColor: 'rgba(14, 165, 168, 1)'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false }
+    },
+    scales: {
+      y: { beginAtZero: true }
+    }
+  }
+});
+
+// Platform Chart
+const platformCtx = document.getElementById('platformChart').getContext('2d');
+new Chart(platformCtx, {
+  type: 'doughnut',
+  data: {
+    labels: {{ platform_labels | tojson }},
+    datasets: [{
+      data: {{ platform_data | tojson }},
+      backgroundColor: [
+        'rgba(14, 165, 168, 0.8)',
+        'rgba(244, 162, 97, 0.8)',
+        'rgba(124, 58, 237, 0.8)'
+      ],
+      borderColor: '#ffffff',
+      borderWidth: 3
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom'
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

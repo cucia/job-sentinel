@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Command Center - JobSentinel{% endblock %}
+
+{% block content %}
+<div class="command-center">
+  <!-- Live Status Bar -->
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-icon pulse-green"></div>
+      <div class="status-info">
+        <div class="status-label">System Status</div>
+        <div class="status-value">{{ 'ACTIVE' if docker_available else 'OFFLINE' }}</div>
+      </div>
+    </div>
+    <div class="status-item">
+      <div class="status-icon pulse-blue"></div>
+      <div class="status-info">
+        <div class="status-label">AI Mode</div>
+        <div class="status-value">{{ 'AUTO' if use_ai else 'MANUAL' }}</div>
+      </div>
+    </div>
+    <div class="status-item">
+      <div class="status-icon pulse-purple"></div>
+      <div class="status-info">
+        <div class="status-label">Jobs Today</div>
+        <div class="status-value">{{ stats.applied_today }}/{{ limits_daily }}</div>
+      </div>
+    </div>
+    <div class="status-item">
+      <div class="status-icon pulse-orange"></div>
+      <div class="status-info">
+        <div class="status-label">Pending Review</div>
+        <div class="status-value">{{ stats.counts.review }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="control-grid">
+    <!-- Left Panel: Agent Activity Feed -->
+    <div class="panel agent-feed-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="icon">🤖</span>
+          AI Agent Activity
+        </div>
+        <button class="btn-icon" onclick="toggleAutoScroll()">
+          <span id="autoScrollIcon">⏸</span>
+        </button>
+      </div>
+      <div class="agent-feed" id="agentFeed">
+        {% if agent_activity %}
+          {% for activity in agent_activity %}
+          <div class="feed-item fade-in">
+            <div class="feed-timestamp">{{ activity.timestamp }}</div>
+            <div class="feed-agent">{{ activity.agent }}</div>
+            <div class="feed-action">{{ activity.action }}</div>
+            <div class="feed-result status-{{ activity.result }}">{{ activity.result }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="feed-empty">
+            <div class="empty-icon">⚡</div>
+            <div class="empty-text">Waiting for agent activity...</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Center Panel: Job Queue -->
+    <div class="panel job-queue-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="icon">📋</span>
+          Job Queue
+          <span class="badge-count">{{ jobs|length }}</span>
+        </div>
+        <div class="panel-actions">
+          <button class="btn-sm btn-success" onclick="bulkApprove()">✓ Approve All</button>
+          <button class="btn-sm btn-danger" onclick="bulkReject()">✗ Reject All</button>
+          <select id="filterStatus" class="select-sm" onchange="filterJobs()">
+            <option value="all">All Status</option>
+            <option value="review">Review</option>
+            <option value="queued">Queued</option>
+            <option value="deferred">Deferred</option>
+          </select>
+        </div>
+      </div>
+      <div class="job-queue" id="jobQueue">
+        {% if jobs %}
+          {% for job in jobs[:20] %}
+          <div class="job-item slide-in" data-status="{{ job.status }}" data-job-key="{{ job.job_key }}">
+            <div class="job-checkbox">
+              <input type="checkbox" class="job-select" value="{{ job.job_key }}">
+            </div>
+            <div class="job-content">
+              <div class="job-header">
+                <div class="job-title">{{ job.title }}</div>
+                <div class="job-score {{ 'score-high' if job.score >= 70 else 'score-low' }}">
+                  {{ job.score or 0 }}
+                </div>
+              </div>
+              <div class="job-meta">
+                <span class="job-company">{{ job.company or 'Unknown' }}</span>
+                <span class="job-sep">•</span>
+                <span class="job-platform">{{ job.platform }}</span>
+                {% if job.easy_apply %}
+                <span class="job-badge badge-easy">EASY APPLY</span>
+                {% endif %}
+              </div>
+              {% if job.ai_reasoning %}
+              <div class="job-reasoning">{{ job.ai_reasoning[:100] }}...</div>
+              {% endif %}
+            </div>
+            <div class="job-actions">
+              <button class="btn-icon btn-approve" onclick="approveJob('{{ job.job_key }}')" title="Approve">✓</button>
+              <button class="btn-icon btn-reject" onclick="rejectJob('{{ job.job_key }}')" title="Reject">✗</button>
+              <button class="btn-icon btn-view" onclick="viewJob('{{ job.job_url }}')" title="View">👁</button>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="queue-empty">
+            <div class="empty-icon">✨</div>
+            <div class="empty-text">No jobs in queue</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right Panel: Control Center -->
+    <div class="panel control-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="icon">⚙️</span>
+          Control Center
+        </div>
+      </div>
+
+      <!-- AI Control -->
+      <div class="control-section">
+        <div class="control-section-title">AI Automation</div>
+        <div class="toggle-group">
+          <div class="toggle-item">
+            <span class="toggle-label">AI Auto-Apply</span>
+            <label class="switch">
+              <input type="checkbox" id="aiToggle" {{ 'checked' if use_ai else '' }} onchange="toggleAI()">
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="toggle-item">
+            <span class="toggle-label">Easy Apply First</span>
+            <label class="switch">
+              <input type="checkbox" id="easyApplyToggle" {{ 'checked' if easy_apply_first else '' }} onchange="toggleEasyApply()">
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Platform Control -->
+      <div class="control-section">
+        <div class="control-section-title">Platform Collectors</div>
+        <div class="platform-controls">
+          {% for platform in ['linkedin', 'indeed', 'naukri'] %}
+          <div class="platform-item">
+            <div class="platform-info">
+              <div class="platform-name">{{ platform|capitalize }}</div>
+              <div class="platform-status status-{{ service_labels['jobsentinel-' + platform] }}">
+                {{ service_labels['jobsentinel-' + platform] }}
+              </div>
+            </div>
+            <div class="platform-actions">
+              {% if service_labels['jobsentinel-' + platform] == 'live' %}
+              <button class="btn-sm btn-danger" onclick="stopService('{{ platform }}')">Stop</button>
+              {% else %}
+              <button class="btn-sm btn-success" onclick="startService('{{ platform }}')">Start</button>
+              {% endif %}
+              <label class="switch-mini">
+                <input type="checkbox" {{ 'checked' if platform_enabled[platform] else '' }} onchange="togglePlatform('{{ platform }}')">
+                <span class="slider-mini"></span>
+              </label>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="control-section">
+        <div class="control-section-title">Quick Stats</div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value">{{ stats.counts.applied }}</div>
+            <div class="stat-label">Applied</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">{{ stats.counts.review }}</div>
+            <div class="stat-label">Review</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">{{ stats.counts.rejected }}</div>
+            <div class="stat-label">Rejected</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value">{{ stats.counts.queued }}</div>
+            <div class="stat-label">Queued</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="control-section">
+        <div class="control-section-title">Quick Actions</div>
+        <div class="quick-actions">
+          <button class="btn-action" onclick="refreshDashboard()">
+            <span class="btn-icon">🔄</span>
+            Refresh
+          </button>
+          <button class="btn-action" onclick="exportJobs()">
+            <span class="btn-icon">📥</span>
+            Export
+          </button>
+          <button class="btn-action" onclick="viewLogs()">
+            <span class="btn-icon">📜</span>
+            Logs
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let autoScroll = true;
+
+function toggleAutoScroll() {
+  autoScroll = !autoScroll;
+  document.getElementById('autoScrollIcon').textContent = autoScroll ? '⏸' : '▶';
+}
+
+function filterJobs() {
+  const filter = document.getElementById('filterStatus').value;
+  const jobs = document.querySelectorAll('.job-item');
+  jobs.forEach(job => {
+    if (filter === 'all' || job.dataset.status === filter) {
+      job.style.display = '';
+    } else {
+      job.style.display = 'none';
+    }
+  });
+}
+
+function bulkApprove() {
+  const selected = Array.from(document.querySelectorAll('.job-select:checked')).map(cb => cb.value);
+  if (selected.length === 0) {
+    alert('No jobs selected');
+    return;
+  }
+  if (confirm(`Approve ${selected.length} jobs?`)) {
+    fetch('/bulk-approve', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({job_keys: selected})
+    }).then(() => location.reload());
+  }
+}
+
+function bulkReject() {
+  const selected = Array.from(document.querySelectorAll('.job-select:checked')).map(cb => cb.value);
+  if (selected.length === 0) {
+    alert('No jobs selected');
+    return;
+  }
+  if (confirm(`Reject ${selected.length} jobs?`)) {
+    fetch('/bulk-reject', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({job_keys: selected})
+    }).then(() => location.reload());
+  }
+}
+
+function approveJob(jobKey) {
+  fetch('/quick-approve', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({job_key: jobKey})
+  }).then(() => {
+    document.querySelector(`[data-job-key="${jobKey}"]`).style.opacity = '0.3';
+  });
+}
+
+function rejectJob(jobKey) {
+  fetch('/quick-reject', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({job_key: jobKey})
+  }).then(() => {
+    document.querySelector(`[data-job-key="${jobKey}"]`).style.opacity = '0.3';
+  });
+}
+
+function viewJob(url) {
+  window.open(url, '_blank');
+}
+
+function toggleAI() {
+  fetch('/toggle/ai', {method: 'POST'}).then(() => location.reload());
+}
+
+function toggleEasyApply() {
+  fetch('/toggle/easy-apply', {method: 'POST'}).then(() => location.reload());
+}
+
+function togglePlatform(platform) {
+  fetch(`/toggle/platform/${platform}`, {method: 'POST'});
+}
+
+function startService(platform) {
+  fetch(`/service/start/jobsentinel-${platform}`, {method: 'POST'}).then(() => location.reload());
+}
+
+function stopService(platform) {
+  fetch(`/service/stop/jobsentinel-${platform}`, {method: 'POST'}).then(() => location.reload());
+}
+
+function refreshDashboard() {
+  location.reload();
+}
+
+function exportJobs() {
+  window.location.href = '/export.csv?status=all';
+}
+
+function viewLogs() {
+  window.open('/logs', '_blank');
+}
+
+// WebSocket live updates
+socket.on('agent_activity', (data) => {
+  const feed = document.getElementById('agentFeed');
+  const item = document.createElement('div');
+  item.className = 'feed-item fade-in';
+  item.innerHTML = `
+    <div class="feed-timestamp">${new Date().toLocaleTimeString()}</div>
+    <div class="feed-agent">${data.agent}</div>
+    <div class="feed-action">${data.action}</div>
+    <div class="feed-result status-${data.result}">${data.result}</div>
+  `;
+  feed.insertBefore(item, feed.firstChild);
+  if (autoScroll) {
+    feed.scrollTop = 0;
+  }
+});
+
+socket.on('job_update', (data) => {
+  // Refresh job queue
+  location.reload();
+});
+</script>
+{% endblock %}

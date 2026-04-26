@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(python -m pytest --collect-only)",
+      "Bash(python -m src.core.controller --help)",
+      "Bash(python -m pip list)",
+      "Bash(python -c \"from core.storage import init_db\")",
+      "Bash(python -m pip install pyyaml flask playwright docker)",
+      "Bash(python *)",
+      "Bash(git clone *)",
+      "Bash(git reset *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git config *)",
+      "Bash(git push *)",
+      "Bash(docker *)",
+      "Bash(pip install *)",
+      "Bash(docker-compose build *)"
+    ]
+  }
+}

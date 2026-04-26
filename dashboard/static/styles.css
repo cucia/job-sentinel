@@ -975,6 +975,213 @@ body {
   }
 }
 
+/* Analytics Styles */
+.chart-container {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  height: 320px;
+}
+
+.search-filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 250px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-family: "Manrope", sans-serif;
+  transition: border-color 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(14, 165, 168, 0.6);
+  box-shadow: 0 0 0 3px rgba(14, 165, 168, 0.1);
+}
+
+.filter-select {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 13px;
+  font-family: "Manrope", sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: rgba(14, 165, 168, 0.6);
+}
+
+.analytics-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.analytics-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.analytics-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.analytics-value {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.analytics-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.agent-decisions {
+  display: grid;
+  gap: 16px;
+}
+
+.decision-card {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+  animation: rise 0.35s ease both;
+}
+
+.decision-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.decision-title {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: "Space Grotesk", sans-serif;
+  color: var(--ink);
+}
+
+.decision-meta {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.decision-body {
+  display: grid;
+  gap: 14px;
+}
+
+.decision-score-row {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.score-item {
+  display: grid;
+  gap: 6px;
+}
+
+.score-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+.score-bar {
+  height: 12px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.score-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.score-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.decision-reasoning {
+  font-size: 13px;
+  color: var(--ink);
+  line-height: 1.6;
+  padding: 12px;
+  background: rgba(124, 58, 237, 0.06);
+  border-radius: 12px;
+  border-left: 3px solid rgba(124, 58, 237, 0.4);
+}
+
+.decision-factors {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.factor-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.factor-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.factor-positive {
+  background: rgba(34, 197, 94, 0.15);
+  color: #14532d;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.factor-negative {
+  background: rgba(239, 68, 68, 0.15);
+  color: #7f1d1d;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 @media (max-width: 720px) {
   .controls {
     grid-template-columns: 1fr;
@@ -996,5 +1203,11 @@ body {
   .profile-picker-row,
   .split-fields {
     grid-template-columns: 1fr;
+  }
+  .decision-score-row {
+    grid-template-columns: 1fr;
+  }
+  .chart-container {
+    height: 280px;
   }
 }
