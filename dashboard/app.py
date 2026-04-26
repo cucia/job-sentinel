@@ -961,6 +961,50 @@ def save_profile_details():
     return _redirect_page("profile_page", profile_name, "Profile details saved.", "ok")
 
 
+@app.post("/upload-resume")
+def upload_resume():
+    """Handle resume upload and parse data into profile."""
+    base_dir, _settings, _db_path = _load_settings_and_db()
+    profile_name = _profile_key(
+        request.form.get("profile_name"),
+        fallback=default_profile_name(base_dir),
+    )
+
+    if 'resume' not in request.files:
+        return _redirect_page("profile_page", profile_name, "No resume file uploaded.", "warn")
+
+    file = request.files['resume']
+    if file.filename == '':
+        return _redirect_page("profile_page", profile_name, "No resume file selected.", "warn")
+
+    allowed_extensions = {'.pdf', '.docx', '.txt'}
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in allowed_extensions:
+        return _redirect_page("profile_page", profile_name, "Invalid file type. Use PDF, DOCX, or TXT.", "warn")
+
+    try:
+        import tempfile
+        from src.ai.resume_parser import parse_resume
+        from src.ai.profile_store import init_profile_from_resume, update_profile_fields
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=file_ext) as tmp:
+            file.save(tmp.name)
+            tmp_path = tmp.name
+
+        try:
+            resume_data = parse_resume(tmp_path, use_llm=True)
+            new_profile = init_profile_from_resume(base_dir, resume_data)
+            update_profile_fields(base_dir, profile_name, new_profile)
+            return _redirect_page("profile_page", profile_name, "Resume parsed successfully! Review and save the extracted data.", "ok")
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    except Exception as e:
+        log(f"Resume parsing error: {e}")
+        return _redirect_page("profile_page", profile_name, f"Error parsing resume: {str(e)}", "warn")
+
+
 @app.post("/session/start/<platform>")
 def session_start(platform: str):
     base_dir, settings, _db_path = _load_settings_and_db()

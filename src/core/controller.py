@@ -339,7 +339,16 @@ def _run_queue_cycle(
             f"platform={platform} title={job.get('title')} url={job.get('job_url')}"
         )
         try:
-            result = apply_fn(job, resume_path, settings)
+            # Check if multi-agent mode is enabled
+            use_multi_agent = settings.get("ai", {}).get("use_multi_agent", False)
+
+            if use_multi_agent:
+                from src.ai.multi_agent_wrapper import apply_with_agents_sync
+                log(f"[Controller] Using multi-agent application for {job.get('title')}")
+                result = apply_with_agents_sync(job, profile, settings, platform)
+            else:
+                result = apply_fn(job, resume_path, settings)
+
             status = None
             easy_apply = None
             if isinstance(result, tuple):
@@ -576,7 +585,16 @@ def _run_direct_latest_cycle(
             f"signals={candidate.get('signals', [])}"
         )
         try:
-            result = apply_fn(job, resume_path, settings)
+            # Check if multi-agent mode is enabled
+            use_multi_agent = settings.get("ai", {}).get("use_multi_agent", False)
+
+            if use_multi_agent:
+                from src.ai.multi_agent_wrapper import apply_with_agents_sync
+                log(f"[Controller] Using multi-agent application for {job.get('title')}")
+                result = apply_with_agents_sync(job, profile, settings, platform)
+            else:
+                result = apply_fn(job, resume_path, settings)
+
             result_status = None
             easy_apply = job.get("easy_apply")
             if isinstance(result, tuple):
