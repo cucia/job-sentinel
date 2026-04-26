@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="command-center">
-  <!-- Live Status Bar -->
+  <!-- Global Status Bar -->
   <div class="status-bar">
     <div class="status-item">
       <div class="status-icon pulse-green"></div>
@@ -16,59 +16,167 @@
     <div class="status-item">
       <div class="status-icon pulse-blue"></div>
       <div class="status-info">
-        <div class="status-label">AI Mode</div>
-        <div class="status-value">{{ 'AUTO' if use_ai else 'MANUAL' }}</div>
+        <div class="status-label">Active Agents</div>
+        <div class="status-value" id="activeAgentsCount">{{ active_agents_count or 0 }}</div>
       </div>
     </div>
     <div class="status-item">
       <div class="status-icon pulse-purple"></div>
       <div class="status-info">
-        <div class="status-label">Jobs Today</div>
+        <div class="status-label">Applications Today</div>
         <div class="status-value">{{ stats.applied_today }}/{{ limits_daily }}</div>
       </div>
     </div>
     <div class="status-item">
       <div class="status-icon pulse-orange"></div>
       <div class="status-info">
-        <div class="status-label">Pending Review</div>
-        <div class="status-value">{{ stats.counts.review }}</div>
+        <div class="status-label">Success Rate</div>
+        <div class="status-value" id="successRate">{{ success_rate or '0' }}%</div>
       </div>
     </div>
   </div>
 
-  <!-- Main Grid -->
+  <!-- Main Grid Layout -->
   <div class="control-grid">
-    <!-- Left Panel: Agent Activity Feed -->
-    <div class="panel agent-feed-panel">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span class="icon">🤖</span>
-          AI Agent Activity
+    <!-- LEFT PANEL: Primary Data -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+
+      <!-- Job Pipeline Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">📊</span>
+            Job Pipeline
+          </div>
         </div>
-        <button class="btn-icon" onclick="toggleAutoScroll()">
-          <span id="autoScrollIcon">⏸</span>
-        </button>
+        <div style="padding: 20px;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Incoming -->
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Incoming</span>
+                <span style="font-size: 13px; color: var(--text-primary); font-weight: 600;">{{ stats.counts.queued or 0 }}</span>
+              </div>
+              <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; background: var(--accent-blue); width: {{ (stats.counts.queued / (stats.total or 1) * 100) if stats.total else 0 }}%; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+
+            <!-- Filtered -->
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Filtered</span>
+                <span style="font-size: 13px; color: var(--text-primary); font-weight: 600;">{{ stats.counts.review or 0 }}</span>
+              </div>
+              <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; background: var(--status-warning); width: {{ (stats.counts.review / (stats.total or 1) * 100) if stats.total else 0 }}%; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+
+            <!-- Applied -->
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Applied</span>
+                <span style="font-size: 13px; color: var(--text-primary); font-weight: 600;">{{ stats.counts.applied or 0 }}</span>
+              </div>
+              <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; background: var(--status-success); width: {{ (stats.counts.applied / (stats.total or 1) * 100) if stats.total else 0 }}%; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+
+            <!-- Rejected -->
+            <div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="font-size: 13px; color: var(--text-secondary); font-weight: 500;">Rejected</span>
+                <span style="font-size: 13px; color: var(--text-primary); font-weight: 600;">{{ stats.counts.rejected or 0 }}</span>
+              </div>
+              <div style="height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                <div style="height: 100%; background: var(--status-error); width: {{ (stats.counts.rejected / (stats.total or 1) * 100) if stats.total else 0 }}%; transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="agent-feed" id="agentFeed">
-        {% if agent_activity %}
-          {% for activity in agent_activity %}
-          <div class="feed-item fade-in">
-            <div class="feed-timestamp">{{ activity.timestamp }}</div>
-            <div class="feed-agent">{{ activity.agent }}</div>
-            <div class="feed-action">{{ activity.action }}</div>
-            <div class="feed-result status-{{ activity.result }}">{{ activity.result }}</div>
+
+      <!-- Agent Activity Panel -->
+      <div class="panel agent-feed-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">🤖</span>
+            Agent Activity
           </div>
-          {% endfor %}
-        {% else %}
-          <div class="feed-empty">
-            <div class="empty-icon">⚡</div>
-            <div class="empty-text">Waiting for agent activity...</div>
+          <button class="btn-icon" onclick="toggleAutoScroll()">
+            <span id="autoScrollIcon">⏸</span>
+          </button>
+        </div>
+        <div class="agent-feed" id="agentFeed">
+          {% if agent_activity %}
+            {% for activity in agent_activity[-10:] %}
+            <div class="feed-item fade-in">
+              <div class="feed-timestamp">{{ activity.timestamp }}</div>
+              <div class="feed-agent">{{ activity.agent }}</div>
+              <div class="feed-action">{{ activity.action }}</div>
+              <div class="feed-result status-{{ activity.result }}">{{ activity.result }}</div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="feed-empty">
+              <div class="empty-icon">⚡</div>
+              <div class="empty-text">Waiting for agent activity...</div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Recent Applications -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">📝</span>
+            Recent Applications
           </div>
-        {% endif %}
+        </div>
+        <div style="padding: 16px; overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <th style="padding: 12px 8px; text-align: left; font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Company</th>
+                <th style="padding: 12px 8px; text-align: left; font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Role</th>
+                <th style="padding: 12px 8px; text-align: left; font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Status</th>
+                <th style="padding: 12px 8px; text-align: left; font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Platform</th>
+                <th style="padding: 12px 8px; text-align: left; font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Time</th>
+              </tr>
+            </thead>
+            <tbody id="recentApplications">
+              {% if recent_applications %}
+                {% for app in recent_applications[:10] %}
+                <tr style="border-bottom: 1px solid var(--border);">
+                  <td style="padding: 12px 8px; font-size: 13px; color: var(--text-primary); font-weight: 500;">{{ app.company or 'Unknown' }}</td>
+                  <td style="padding: 12px 8px; font-size: 13px; color: var(--text-secondary);">{{ app.title[:40] }}...</td>
+                  <td style="padding: 12px 8px;">
+                    <span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase;
+                      {% if app.status == 'applied' %}background: rgba(34, 197, 94, 0.15); color: var(--status-success);
+                      {% elif app.status == 'failed' %}background: rgba(239, 68, 68, 0.15); color: var(--status-error);
+                      {% else %}background: rgba(245, 158, 11, 0.15); color: var(--status-warning);{% endif %}">
+                      {{ app.status }}
+                    </span>
+                  </td>
+                  <td style="padding: 12px 8px; font-size: 13px; color: var(--text-secondary); text-transform: capitalize;">{{ app.platform }}</td>
+                  <td style="padding: 12px 8px; font-size: 12px; color: var(--text-muted);">{{ app.time }}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="5" style="padding: 40px; text-align: center; color: var(--text-muted);">No recent applications</td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- Center Panel: Job Queue -->
+    <!-- CENTER PANEL: Job Queue -->
     <div class="panel job-queue-panel">
       <div class="panel-header">
         <div class="panel-title">
@@ -129,103 +237,192 @@
       </div>
     </div>
 
-    <!-- Right Panel: Control Center -->
-    <div class="panel control-panel">
-      <div class="panel-header">
-        <div class="panel-title">
-          <span class="icon">⚙️</span>
-          Control Center
-        </div>
-      </div>
+    <!-- RIGHT PANEL: Insights & Control -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
 
-      <!-- AI Control -->
-      <div class="control-section">
-        <div class="control-section-title">AI Automation</div>
-        <div class="toggle-group">
-          <div class="toggle-item">
-            <span class="toggle-label">AI Auto-Apply</span>
-            <label class="switch">
-              <input type="checkbox" id="aiToggle" {{ 'checked' if use_ai else '' }} onchange="toggleAI()">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="toggle-item">
-            <span class="toggle-label">Easy Apply First</span>
-            <label class="switch">
-              <input type="checkbox" id="easyApplyToggle" {{ 'checked' if easy_apply_first else '' }} onchange="toggleEasyApply()">
-              <span class="slider"></span>
-            </label>
+      <!-- AI Insights Panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">🧠</span>
+            AI Insights
           </div>
         </div>
-      </div>
-
-      <!-- Platform Control -->
-      <div class="control-section">
-        <div class="control-section-title">Platform Collectors</div>
-        <div class="platform-controls">
-          {% for platform in ['linkedin', 'indeed', 'naukri'] %}
-          <div class="platform-item">
-            <div class="platform-info">
-              <div class="platform-name">{{ platform|capitalize }}</div>
-              <div class="platform-status status-{{ service_labels['jobsentinel-' + platform] }}">
-                {{ service_labels['jobsentinel-' + platform] }}
+        <div style="padding: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            {% if ai_insights %}
+              {% for insight in ai_insights %}
+              <div style="padding: 12px; background: var(--bg-tertiary); border: 1px solid var(--border); border-left: 3px solid var(--accent-blue); border-radius: 6px;">
+                <div style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">{{ insight }}</div>
               </div>
-            </div>
-            <div class="platform-actions">
-              {% if service_labels['jobsentinel-' + platform] == 'live' %}
-              <button class="btn-sm btn-danger" onclick="stopService('{{ platform }}')">Stop</button>
+              {% endfor %}
+            {% else %}
+              <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">
+                Collecting data for insights...
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Performance Metrics -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">📈</span>
+            Performance Metrics
+          </div>
+        </div>
+        <div style="padding: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <!-- Platform Performance -->
+            <div>
+              <div style="font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Platform Success Rate</div>
+              {% if platform_performance %}
+                {% for platform, rate in platform_performance.items() %}
+                <div style="margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 13px; color: var(--text-primary); text-transform: capitalize;">{{ platform }}</span>
+                    <span style="font-size: 13px; font-weight: 600; color: {% if rate >= 0.7 %}var(--status-success){% elif rate >= 0.4 %}var(--status-warning){% else %}var(--status-error){% endif %};">{{ (rate * 100)|int }}%</span>
+                  </div>
+                  <div style="height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
+                    <div style="height: 100%; background: {% if rate >= 0.7 %}var(--status-success){% elif rate >= 0.4 %}var(--status-warning){% else %}var(--status-error){% endif %}; width: {{ (rate * 100)|int }}%; transition: width 0.3s ease;"></div>
+                  </div>
+                </div>
+                {% endfor %}
               {% else %}
-              <button class="btn-sm btn-success" onclick="startService('{{ platform }}')">Start</button>
+                <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">No data yet</div>
               {% endif %}
-              <label class="switch-mini">
-                <input type="checkbox" {{ 'checked' if platform_enabled[platform] else '' }} onchange="togglePlatform('{{ platform }}')">
-                <span class="slider-mini"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Control Center -->
+      <div class="panel control-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">⚙️</span>
+            Control Center
+          </div>
+        </div>
+
+        <!-- AI Control -->
+        <div class="control-section">
+          <div class="control-section-title">AI Automation</div>
+          <div class="toggle-group">
+            <div class="toggle-item">
+              <span class="toggle-label">AI Auto-Apply</span>
+              <label class="switch">
+                <input type="checkbox" id="aiToggle" {{ 'checked' if use_ai else '' }} onchange="toggleAI()">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="toggle-item">
+              <span class="toggle-label">Easy Apply First</span>
+              <label class="switch">
+                <input type="checkbox" id="easyApplyToggle" {{ 'checked' if easy_apply_first else '' }} onchange="toggleEasyApply()">
+                <span class="slider"></span>
               </label>
             </div>
           </div>
-          {% endfor %}
+        </div>
+
+        <!-- Platform Control -->
+        <div class="control-section">
+          <div class="control-section-title">Platform Collectors</div>
+          <div class="platform-controls">
+            {% for platform in ['linkedin', 'indeed', 'naukri'] %}
+            <div class="platform-item">
+              <div class="platform-info">
+                <div class="platform-name">{{ platform|capitalize }}</div>
+                <div class="platform-status status-{{ service_labels['jobsentinel-' + platform] }}">
+                  {{ service_labels['jobsentinel-' + platform] }}
+                </div>
+              </div>
+              <div class="platform-actions">
+                {% if service_labels['jobsentinel-' + platform] == 'live' %}
+                <button class="btn-sm btn-danger" onclick="stopService('{{ platform }}')">Stop</button>
+                {% else %}
+                <button class="btn-sm btn-success" onclick="startService('{{ platform }}')">Start</button>
+                {% endif %}
+                <label class="switch-mini">
+                  <input type="checkbox" {{ 'checked' if platform_enabled[platform] else '' }} onchange="togglePlatform('{{ platform }}')">
+                  <span class="slider-mini"></span>
+                </label>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="control-section">
+          <div class="control-section-title">Quick Stats</div>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-value">{{ stats.counts.applied }}</div>
+              <div class="stat-label">Applied</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value">{{ stats.counts.review }}</div>
+              <div class="stat-label">Review</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value">{{ stats.counts.rejected }}</div>
+              <div class="stat-label">Rejected</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value">{{ stats.counts.queued }}</div>
+              <div class="stat-label">Queued</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="control-section">
+          <div class="control-section-title">Quick Actions</div>
+          <div class="quick-actions">
+            <button class="btn-action" onclick="refreshDashboard()">
+              <span class="btn-icon">🔄</span>
+              Refresh
+            </button>
+            <button class="btn-action" onclick="exportJobs()">
+              <span class="btn-icon">📥</span>
+              Export
+            </button>
+            <button class="btn-action" onclick="viewLogs()">
+              <span class="btn-icon">📜</span>
+              Logs
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Quick Stats -->
-      <div class="control-section">
-        <div class="control-section-title">Quick Stats</div>
-        <div class="stats-grid">
-          <div class="stat-box">
-            <div class="stat-value">{{ stats.counts.applied }}</div>
-            <div class="stat-label">Applied</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-value">{{ stats.counts.review }}</div>
-            <div class="stat-label">Review</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-value">{{ stats.counts.rejected }}</div>
-            <div class="stat-label">Rejected</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-value">{{ stats.counts.queued }}</div>
-            <div class="stat-label">Queued</div>
+      <!-- System Logs -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span class="icon">📋</span>
+            System Logs
           </div>
         </div>
-      </div>
-
-      <!-- Quick Actions -->
-      <div class="control-section">
-        <div class="control-section-title">Quick Actions</div>
-        <div class="quick-actions">
-          <button class="btn-action" onclick="refreshDashboard()">
-            <span class="btn-icon">🔄</span>
-            Refresh
-          </button>
-          <button class="btn-action" onclick="exportJobs()">
-            <span class="btn-icon">📥</span>
-            Export
-          </button>
-          <button class="btn-action" onclick="viewLogs()">
-            <span class="btn-icon">📜</span>
-            Logs
-          </button>
+        <div style="padding: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+            {% if system_logs %}
+              {% for log in system_logs[-10:] %}
+              <div style="padding: 8px 12px; background: var(--bg-tertiary); border-left: 3px solid {% if log.level == 'error' %}var(--status-error){% elif log.level == 'success' %}var(--status-success){% else %}var(--accent-blue){% endif %}; border-radius: 4px; font-size: 12px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                  <span style="color: {% if log.level == 'error' %}var(--status-error){% elif log.level == 'success' %}var(--status-success){% else %}var(--accent-blue){% endif %}; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">{{ log.level }}</span>
+                  <span style="color: var(--text-muted); font-size: 11px;">{{ log.time }}</span>
+                </div>
+                <div style="color: var(--text-secondary); line-height: 1.4;">{{ log.message }}</div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px;">No logs available</div>
+            {% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -352,6 +549,20 @@ socket.on('agent_activity', (data) => {
   feed.insertBefore(item, feed.firstChild);
   if (autoScroll) {
     feed.scrollTop = 0;
+  }
+
+  // Update active agents count
+  const activeAgentsEl = document.getElementById('activeAgentsCount');
+  if (activeAgentsEl && data.active_count !== undefined) {
+    activeAgentsEl.textContent = data.active_count;
+  }
+});
+
+socket.on('stats_update', (data) => {
+  // Update success rate
+  const successRateEl = document.getElementById('successRate');
+  if (successRateEl && data.success_rate !== undefined) {
+    successRateEl.textContent = data.success_rate + '%';
   }
 });
 
