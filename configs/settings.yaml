@@ -1,5 +1,5 @@
 app:
-  headless: false
+  headless: true
   run_interval_seconds: 60
   resume_path: resumes/resume.pdf
   pipeline_mode: direct_latest
@@ -41,7 +41,7 @@ ai:
   # Cloud AI Configuration (recommended)
   use_cloud: true  # Set to true to use cloud AI providers
   provider: groq  # Options: openai, anthropic, gemini, groq, openrouter, together, ollama
-  model: llama-3.1-70b-versatile  # See FREE_AI_SETUP.md for free options
+  model: llama-3.1-8b-instant  # See FREE_AI_SETUP.md for free options
   # api_key: sk-...  # Optional: set API key in environment (OPENAI_API_KEY, GROQ_API_KEY, etc.)
 
   # FREE OPTIONS:
