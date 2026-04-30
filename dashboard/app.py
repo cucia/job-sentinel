@@ -300,15 +300,15 @@ def _get_agent_activity(db_path: str) -> list:
     activity = []
     with sqlite3.connect(db_path) as conn:
         rows = conn.execute("""
-            SELECT title, company, decision, score, created_at, ai_result
+            SELECT title, company, decision, score, created_at
             FROM jobs
-            WHERE ai_result IS NOT NULL
+            WHERE decision IS NOT NULL
             ORDER BY created_at DESC
             LIMIT 20
         """).fetchall()
 
         for row in rows:
-            title, company, decision, score, created_at, ai_result_json = row
+            title, company, decision, score, created_at = row
 
             # Parse timestamp
             try:
@@ -372,9 +372,7 @@ def _get_analytics_data(db_path: str) -> dict:
         # Agent stats
         total_evals = conn.execute("SELECT COUNT(*) FROM jobs WHERE score IS NOT NULL").fetchone()[0] or 1
 
-        avg_confidence = conn.execute(
-            "SELECT AVG(CAST(json_extract(ai_result, '$.confidence') AS INTEGER)) FROM jobs WHERE ai_result IS NOT NULL"
-        ).fetchone()[0] or 0
+        avg_confidence = 0  # Confidence data not available in current schema
 
         apply_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE decision = 'APPLY'").fetchone()[0] or 0
         review_count = conn.execute("SELECT COUNT(*) FROM jobs WHERE decision = 'REVIEW'").fetchone()[0] or 0

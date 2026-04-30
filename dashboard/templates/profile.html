@@ -3,6 +3,8 @@
 {% block title %}Profile - JobSentinel{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/profile.css" />
+
 {% include "_notice.html" %}
 
 <section class="section section-tight">
@@ -32,14 +34,14 @@
         <div class="profile-title">Profile details</div>
 
         <!-- Resume Upload Section -->
-        <div class="resume-upload-section" style="margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px;">
-          <div class="profile-title" style="font-size: 14px; margin-bottom: 10px;">Quick Start: Upload Resume</div>
-          <form method="post" action="{{ url_for('upload_resume') }}" enctype="multipart/form-data" style="display: flex; gap: 10px; align-items: center;">
+        <div class="resume-upload-section">
+          <div class="profile-title">Quick Start: Upload Resume</div>
+          <form class="resume-upload-form" method="post" action="{{ url_for('upload_resume') }}" enctype="multipart/form-data">
             <input type="hidden" name="profile_name" value="{{ profile_name }}" />
-            <input type="file" name="resume" accept=".pdf,.docx,.txt" required style="flex: 1;" />
+            <input type="file" name="resume" accept=".pdf,.docx,.txt" required />
             <button class="control-toggle compact" type="submit">Parse Resume</button>
           </form>
-          <div style="font-size: 12px; color: #666; margin-top: 5px;">Upload your resume to auto-fill profile fields (PDF, DOCX, or TXT)</div>
+          <div class="resume-upload-hint">Upload your resume to auto-fill profile fields (PDF, DOCX, or TXT)</div>
         </div>
 
         <label class="field-label" for="profile_name">Profile file</label>
