@@ -9,6 +9,7 @@ services:
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
+      - ./configs:/app/configs
   jobsentinel-naukri:
     build: .
     command: ["/app/scripts/start-xvfb.sh", "python", "-m", "src.core.controller", "--platforms", "naukri"]
@@ -19,6 +20,7 @@ services:
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
+      - ./configs:/app/configs
   jobsentinel-indeed:
     build: .
     command: ["/app/scripts/start-xvfb.sh", "python", "-m", "src.core.controller", "--platforms", "indeed"]
@@ -29,6 +31,7 @@ services:
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
+      - ./configs:/app/configs
   dashboard:
     build: .
     command: ["/app/scripts/start-dashboard-gui.sh", "python", "-m", "dashboard.app"]
@@ -39,6 +42,7 @@ services:
     volumes:
       - ./sessions:/app/sessions
       - ./data:/app/data
+      - ./configs:/app/configs
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "0.0.0.0:5000:5000"
