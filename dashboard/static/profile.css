@@ -1,0 +1,356 @@
+/* ===== PROFILE PAGE STYLES ===== */
+
+/* Chat Shell Layout */
+.chat-shell {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.chat-profile,
+.chat-panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+/* Profile Toolbar */
+.profile-toolbar {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-picker-row {
+  display: flex;
+  gap: 8px;
+}
+
+/* Profile Form */
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+/* Resume Upload Section */
+.resume-upload-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.resume-upload-section .profile-title {
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+
+.resume-upload-form {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.resume-upload-form input[type="file"] {
+  flex: 1;
+  padding: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.resume-upload-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* Form Fields */
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.field-input,
+.field-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background: var(--bg-primary);
+}
+
+.field-textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+/* Split Fields */
+.split-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Control Toggle Button */
+.control-toggle {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.control-toggle:hover {
+  background: var(--bg-primary);
+  border-color: var(--border-light);
+}
+
+.control-toggle.active {
+  background: var(--accent-blue);
+  color: white;
+  border-color: var(--accent-blue);
+}
+
+.control-toggle.active:hover {
+  background: #2563eb;
+}
+
+.control-toggle.compact {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.control-toggle.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--status-error);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.control-toggle.danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* Profile Snapshot */
+.profile-snapshot {
+  padding: 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.profile-item {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.profile-item strong {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+/* Chat Log */
+.chat-log {
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.chat-log::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-log::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 3px;
+}
+
+.chat-log::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 3px;
+}
+
+.chat-log::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.chat-row {
+  margin-bottom: 16px;
+}
+
+.chat-row.user {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.chat-row.assistant {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+}
+
+.chat-row.user .chat-bubble {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.chat-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.chat-text {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.chat-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Chat Form */
+.chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-form textarea {
+  width: 100%;
+  padding: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.chat-form textarea:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  background: var(--bg-primary);
+}
+
+/* Responsive */
+@media (max-width: 1199px) {
+  .chat-shell {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .split-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-profile,
+  .chat-panel {
+    padding: 16px;
+  }
+
+  .profile-picker-row {
+    flex-direction: column;
+  }
+
+  .resume-upload-form {
+    flex-direction: column;
+  }
+
+  .resume-upload-form input[type="file"] {
+    width: 100%;
+  }
+}
+
+@media (max-width: 575px) {
+  .profile-title {
+    font-size: 16px;
+  }
+
+  .field-input,
+  .field-textarea {
+    font-size: 13px;
+  }
+}
+
+/* QHD and larger screens */
+@media (min-width: 2560px) {
+  .chat-shell {
+    gap: 32px;
+  }
+
+  .chat-profile,
+  .chat-panel {
+    padding: 32px;
+  }
+
+  .profile-title {
+    font-size: 20px;
+  }
+
+  .chat-log {
+    max-height: 600px;
+  }
+}

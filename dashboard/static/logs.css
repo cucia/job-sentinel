@@ -1,0 +1,120 @@
+/* ===== LOGS PAGE STYLES ===== */
+
+/* Log Shell */
+.log-shell {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+}
+
+.log-shell::-webkit-scrollbar {
+  width: 8px;
+}
+
+.log-shell::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+.log-shell::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+
+.log-shell::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Log Lines */
+.log-line {
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  background: var(--bg-tertiary);
+  border-left: 3px solid var(--border);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  word-wrap: break-word;
+  transition: all 0.2s ease;
+}
+
+.log-line:hover {
+  background: var(--bg-primary);
+  border-left-color: var(--accent-blue);
+}
+
+/* Log Level Colors */
+.log-line:contains("ERROR"),
+.log-line:contains("CRITICAL") {
+  border-left-color: var(--status-error);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.log-line:contains("WARNING"),
+.log-line:contains("WARN") {
+  border-left-color: var(--status-warning);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.log-line:contains("INFO") {
+  border-left-color: var(--accent-blue);
+}
+
+.log-line:contains("SUCCESS"),
+.log-line:contains("COMPLETE") {
+  border-left-color: var(--status-success);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+/* Empty State */
+.log-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-family: 'Inter', system-ui;
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+  .log-shell {
+    max-height: 500px;
+  }
+
+  .log-line {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+
+@media (max-width: 575px) {
+  .log-shell {
+    padding: 12px;
+    max-height: 400px;
+  }
+
+  .log-line {
+    font-size: 11px;
+  }
+}
+
+/* QHD and larger screens */
+@media (min-width: 2560px) {
+  .log-shell {
+    max-height: calc(100vh - 320px);
+    padding: 32px;
+  }
+
+  .log-line {
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+}

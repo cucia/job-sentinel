@@ -1,44 +1,127 @@
 # JobSentinel
 
+**AI-Powered Job Application Automation System**
 
-JobSentinel is a cybersecurity job automation system that:
-- collects jobs from multiple platforms,
-- stores them in a local SQLite database,
-- applies automatically when possible,
-- and exposes a dashboard for tracking and export.
+JobSentinel is an intelligent job automation system that uses multi-agent AI to:
+- 🤖 Collect jobs from multiple platforms (LinkedIn, Indeed, Naukri)
+- 🧠 Evaluate jobs with specialized AI agents
+- ⚡ Apply automatically with intelligent form filling
+- 📊 Track everything in a modern AI Command Center dashboard
+- 🎯 Optimize applications with quality filtering and visibility prediction
 
-The goal is to scale to many platforms while keeping the core workflow stable and modular.
+**Status:** ✅ Production Ready | **Version:** 2.0 (Multi-Agent System)
+
+The system uses 8 specialized AI agents working in coordination to maximize your job search success.
+
+## 🚀 Quick Start
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+playwright install chromium
+
+# 2. Configure settings
+cp configs/settings.yaml.example configs/settings.yaml
+# Edit settings.yaml with your preferences
+
+# 3. Run the system
+python -m src.core.controller --platforms linkedin &
+python -m dashboard.app
+
+# 4. Open dashboard
+# Visit http://localhost:5000
+```
 
 ## How it works
 
-1) Collect jobs from each enabled platform.
-2) Store jobs in SQLite (`data/jobsentinel.db`).
-3) Optionally enrich jobs with "About the job" content (LinkedIn only).
-4) Apply automatically; anything blocked goes to **Review**.
-5) Show results in the dashboard (tabs + CSV export).
+1. **Collect** - Scrape jobs from LinkedIn, Indeed, Naukri
+2. **Evaluate** - AI agents analyze job-candidate fit with detailed reasoning
+3. **Filter** - Quality scoring, visibility optimization, diversity control
+4. **Apply** - Intelligent form filling with ATS-specific field mapping
+5. **Verify** - Submission verification with confidence scoring
+6. **Track** - Monitor everything in the AI Command Center dashboard
 
-## Project Structure
+## 🤖 Multi-Agent AI System
+
+JobSentinel uses 8 specialized AI agents:
+
+1. **JobEvaluatorAgent** - Evaluates job-candidate match with detailed reasoning
+2. **ApplicationAgent** - Plans optimal application strategy  
+3. **ReviewAgent** - Analyzes borderline cases for human review
+4. **StrategyAgent** - Prioritizes batches of jobs
+5. **NavigationAgent** - Handles page navigation and redirects
+6. **FormDetectionAgent** - Detects and analyzes application forms
+7. **FormFillerAgent** - Fills forms with ATS-specific mapping
+8. **RecoveryAgent** - Handles failures with intelligent recovery
+
+Each agent specializes in one task and coordinates with others through a shared TaskContext.
+
+## 🎯 Key Features
+
+### Intelligent Application
+- ✅ Multi-agent coordination for complex workflows
+- ✅ ATS-specific field mapping (Greenhouse, Lever, Workday, etc.)
+- ✅ Submission verification with confidence scoring
+- ✅ Human behavior simulation (delays, mouse movements)
+- ✅ Retry logic with exponential backoff
+- ✅ CAPTCHA and auth detection
+
+### Advanced Filtering
+- ✅ Quality scoring (skill match, role alignment, experience fit)
+- ✅ Shortlist probability prediction
+- ✅ Visibility optimization (timing, platform, competition)
+- ✅ Diversity control (role types, companies, locations)
+- ✅ Adaptive strategy (learns from outcomes)
+- ✅ Feedback learning (improves over time)
+
+### Modern Dashboard
+- ✅ AI Command Center with real-time monitoring
+- ✅ Live agent activity feed
+- ✅ Analytics with charts (pipeline, trends, platforms)
+- ✅ Bulk actions (approve/reject multiple jobs)
+- ✅ Resume upload with LLM parsing
+- ✅ WebSocket live updates
+- ✅ CSV export
+
+### Cloud AI Integration
+- ✅ 7 AI providers supported (Groq, OpenRouter, Gemini, etc.)
+- ✅ FREE options available (14,400 req/day with Groq)
+- ✅ Automatic fallback to local Ollama
+- ✅ Easy provider switching
+
+## 📁 Project Structure
 
 ```
 src/
-├── ai/                    # AI/ML layer
-│   ├── scorer.py         # Job scoring (rule-based + LLM)
-│   ├── llm.py            # Ollama client for LLM evaluation
-│   ├── form_filler.py    # Application form automation
-│   └── chat.py           # Profile chat assistant
+├── ai/                    # AI/ML layer (25 modules)
+│   ├── agents.py         # Multi-agent system ⭐
+│   ├── task_context.py   # Task coordination ⭐
+│   ├── verification.py   # Submission verification ⭐
+│   ├── field_maps.py     # ATS field mappings ⭐
+│   ├── form_filler.py    # Form automation
+│   ├── human_behavior.py # Human simulation
+│   ├── cloud_llm.py      # Cloud AI integration
+│   ├── resume_parser.py  # Resume parsing
+│   ├── quality_scorer.py # Quality filtering
+│   └── ...
 ├── core/                 # Business logic
-│   ├── controller.py     # Main pipeline
-│   ├── storage.py         # SQLite database
-│   ├── config.py          # Settings management
+│   ├── controller.py     # Main pipeline ⭐
+│   ├── storage.py        # SQLite database
+│   ├── config.py         # Settings management
 │   └── ...
 ├── platforms/            # Platform integrations
 │   ├── linkedin/
 │   ├── indeed/
 │   └── naukri/
-└── services/             # External services
+└── services/
     └── session_manager.py
-dashboard/               # Flask UI
-configs/                 # Configuration files
+dashboard/               # Flask UI ⭐
+├── app.py              # Main application
+├── templates/          # HTML templates
+└── static/             # CSS/JS assets
+configs/                # Configuration files
+data/                   # Database and logs
+sessions/               # Platform sessions
 ```
 
 ## Containers
@@ -59,62 +142,159 @@ docker-compose up -d ollama jobsentinel-linkedin dashboard
 docker-compose up -d jobsentinel-linkedin dashboard
 ```
 
-## Settings
+## ⚙️ Configuration
 
-All settings live in `configs/settings.yaml`. Key switches:
+All settings live in `configs/settings.yaml`:
 
 ```yaml
 app:
   run_interval_seconds: 60
   apply_all: true
-  use_ai: false
-  use_policy: false
+  use_ai: true              # Enable AI evaluation
+  pipeline_mode: direct_latest
+  easy_apply_first: true
   entry_level_only: false
-  enrich_before_ai: true
 
 ai:
-  use_llm: false              # Enable Ollama for job scoring
-  llm_model: llama3.2:latest # Ollama model to use
+  use_agents: true          # Enable multi-agent system ⭐
+  use_cloud: true           # Use cloud AI providers ⭐
+  provider: groq            # groq, openai, gemini, etc.
+  model: llama-3.1-70b-versatile
   min_score: 70
-  uncertainty_margin: 5
+  
+  # Advanced filters
+  use_quality_filter: true
+  use_visibility_filter: true
+  use_diversity_control: true
 
 platforms:
   enabled:
     - linkedin
     # - indeed
+    # - naukri
 ```
 
-### Dashboard toggles
+See `CLOUD_AI_SETUP.md` for cloud AI configuration and `FREE_AI_SETUP.md` for free provider options.
 
-The dashboard has toggles for:
-- Platform on/off (LinkedIn, Indeed, Naukri)
-- AI filter on/off
-- LLM evaluation on/off (requires Ollama)
+## 📊 Dashboard
 
-These toggles update `configs/settings.yaml`.
+Access the AI Command Center at `http://localhost:5000`
 
-## LLM Integration (Optional)
+### Pages
+- **Command Center** - Real-time agent monitoring and job queue
+- **Analytics** - Charts and insights (pipeline, trends, platforms)
+- **Jobs** - Browse jobs by status (applied, review, queued, etc.)
+- **Sessions** - Manage platform login sessions
+- **Profile** - Edit profile and upload resume
+- **Automation** - Configure platforms and AI settings
+- **Logs** - View system logs
 
-JobSentinel can use a local LLM via Ollama for smarter job matching:
+### Features
+- Real-time agent activity feed
+- Bulk approve/reject actions
+- Quick action buttons
+- WebSocket live updates
+- CSV export
+- Resume upload with LLM parsing
+- Modern dark theme UI
 
-1. Start Ollama: `docker-compose up -d ollama`
-2. Pull a model: `docker exec jobsentinel-ollama ollama pull llama3.2:latest`
-3. Enable in settings: `ai.use_llm: true`
+## 🧠 AI Configuration
 
-Supported models: llama3.2, mistral, phi4
+### Cloud AI (Recommended)
 
-## Data locations
+JobSentinel supports 7 cloud AI providers with **FREE options**:
 
-- Sessions: `sessions/*.json`
-- Database: `data/jobsentinel.db`
-- Resume: `resumes/resume.pdf`
+```yaml
+ai:
+  use_cloud: true
+  provider: groq  # FREE: 14,400 requests/day
+  model: llama-3.1-70b-versatile
+```
 
-## CSV export
+**Free Providers:**
+- **Groq** - 14,400 req/day FREE (recommended)
+- **OpenRouter** - Gemini Flash FREE
+- **Google Gemini** - 1,500 req/day FREE
+- **Together AI** - $25 free credits
 
-Download jobs from the dashboard:
-- `http://localhost:5000/export.csv`
-- `http://localhost:5000/export.csv?status=applied`
+See `FREE_AI_SETUP.md` for setup instructions.
 
-## Setup
+### Local AI (Ollama)
 
-Full setup steps are in `SETUP.md`.
+For offline use:
+
+```yaml
+ai:
+  use_cloud: false
+  use_llm: true
+  llm_model: llama3.2:latest
+```
+
+1. Install Ollama: `https://ollama.ai`
+2. Pull model: `ollama pull llama3.2`
+3. Run: Model will be used automatically
+
+## 📁 Data Storage
+
+- **Database:** `data/jobsentinel.db` - SQLite database with jobs, decisions, feedback
+- **Sessions:** `sessions/*.json` - Platform login sessions
+- **Resume:** `resumes/resume.pdf` - Your resume for applications
+- **Logs:** `data/jobsentinel.log` - Application logs
+- **Profiles:** `profiles/*.yaml` - Candidate profiles
+
+## 📤 Export
+
+Download jobs as CSV from the dashboard:
+- All jobs: `http://localhost:5000/export.csv`
+- By status: `http://localhost:5000/export.csv?status=applied`
+- By platform: `http://localhost:5000/export.csv?platform=linkedin`
+
+## 📚 Documentation
+
+- **SETUP.md** - Complete setup instructions
+- **QUICKSTART.md** - Quick start guide
+- **CLOUD_AI_SETUP.md** - Cloud AI configuration
+- **FREE_AI_SETUP.md** - Free AI provider options
+- **MULTI_AGENT_SYSTEM.md** - Multi-agent architecture
+- **FEATURES.md** - Feature list
+- **SYSTEM_STATUS.md** - Current system status ⭐
+
+## 🐛 Troubleshooting
+
+### AI not working
+- Check `ai.use_cloud: true` in settings.yaml
+- Verify API key is set in environment (GROQ_API_KEY, etc.)
+- Check logs: `tail -f data/jobsentinel.log`
+
+### Sessions expired
+- Go to Sessions page in dashboard
+- Click "Start Login" for the platform
+- Complete login in VNC viewer
+- Click "Save Session"
+
+### No jobs found
+- Check platform is enabled in settings.yaml
+- Verify search keywords match your profile
+- Check session is valid (green status in dashboard)
+
+### Application failed
+- Check logs for specific error
+- Verify resume exists at `resumes/resume.pdf`
+- Try manual application to test the job posting
+
+## 🤝 Contributing
+
+Contributions welcome! Areas for improvement:
+- Additional platform integrations
+- Enhanced ATS field mappings
+- Improved verification logic
+- Better error recovery strategies
+- UI/UX enhancements
+
+## 📄 License
+
+MIT License - See LICENSE file for details
+
+## ⚠️ Disclaimer
+
+This tool is for personal use only. Always review applications before submission and comply with platform terms of service. Use responsibly and ethically.

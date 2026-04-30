@@ -52,20 +52,47 @@ body {
 .page {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 16px;
+}
+
+/* Responsive page container */
+@media (min-width: 2560px) {
+  .page {
+    max-width: 2400px;
+    padding: 20px;
+  }
+}
+
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .page {
+    max-width: 1800px;
+    padding: 24px;
+  }
+}
+
+@media (max-width: 991px) {
+  .page {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 575px) {
+  .page {
+    padding: 12px;
+  }
 }
 
 /* ===== TOPBAR ===== */
 .topbar {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 24px;
+  gap: 20px;
   align-items: center;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 16px 24px;
-  margin-bottom: 24px;
+  padding: 12px 20px;
+  margin-bottom: 16px;
 }
 
 .brand {
@@ -559,5 +586,316 @@ input:checked + .slider-mini:before {
   .nav-link {
     font-size: 13px;
     padding: 6px 12px;
+  }
+}
+
+/* Mobile portrait */
+@media (max-width: 575px) {
+  .topbar {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 12px;
+  }
+
+  .brand {
+    justify-content: center;
+  }
+
+  .nav {
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .nav-link {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .tabs {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+}
+
+/* QHD and Ultra-wide monitors */
+@media (min-width: 2560px) {
+  .topbar {
+    padding: 14px 24px;
+    margin-bottom: 20px;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    font-size: 17px;
+  }
+
+  .brand-title {
+    font-size: 19px;
+  }
+
+  .brand-subtitle {
+    font-size: 12px;
+  }
+
+  .nav-link {
+    font-size: 14px;
+    padding: 9px 18px;
+  }
+}
+
+/* ===== GLOBAL TYPOGRAPHY ===== */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+h1 { font-size: 28px; }
+h2 { font-size: 24px; }
+h3 { font-size: 20px; }
+h4 { font-size: 18px; }
+h5 { font-size: 16px; }
+h6 { font-size: 14px; }
+
+p {
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+/* ===== SECTIONS ===== */
+.section {
+  margin-bottom: 24px;
+}
+
+.section-tight {
+  margin-bottom: 16px;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.section-actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* ===== LINKS ===== */
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #2563eb;
+}
+
+.link {
+  color: var(--accent-blue);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* ===== BADGES ===== */
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.badge.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--status-success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--status-error);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--status-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge.info {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--status-info);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ===== BUTTONS ===== */
+button {
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent-blue);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  border-color: var(--border-light);
+}
+
+/* ===== FORMS ===== */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* ===== CARDS ===== */
+.card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--border-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ===== EMPTY STATES ===== */
+.empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.empty-card {
+  text-align: center;
+  padding: 60px 40px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  max-width: 500px;
+}
+
+.empty-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ===== RESPONSIVE TYPOGRAPHY ===== */
+@media (max-width: 767px) {
+  h1 { font-size: 24px; }
+  h2 { font-size: 20px; }
+  h3 { font-size: 18px; }
+  h4 { font-size: 16px; }
+
+  .section-title {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 2560px) {
+  h1 { font-size: 32px; }
+  h2 { font-size: 28px; }
+  h3 { font-size: 24px; }
+
+  .section-title {
+    font-size: 22px;
   }
 }

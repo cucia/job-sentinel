@@ -1315,10 +1315,6 @@ class AgentOrchestrator:
                     "verification": verification_result,
                     "needs_review": True
                 }
-                    confirmation_text = await element.text_content()
-                    task_context.confirmation_message = confirmation_text
-                    confirmation_found = True
-                    break
 
             if confirmation_found:
                 log(f"[Orchestrator] Application submitted successfully")

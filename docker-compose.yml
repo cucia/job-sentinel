@@ -1,7 +1,7 @@
 services:
   jobsentinel-linkedin:
     build: .
-    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "core.controller", "--platforms", "linkedin"]
+    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "src.core.controller", "--platforms", "linkedin"]
     env_file:
       - .env
     environment:
@@ -11,7 +11,7 @@ services:
       - ./data:/app/data
   jobsentinel-naukri:
     build: .
-    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "core.controller", "--platforms", "naukri"]
+    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "src.core.controller", "--platforms", "naukri"]
     env_file:
       - .env
     environment:
@@ -21,7 +21,7 @@ services:
       - ./data:/app/data
   jobsentinel-indeed:
     build: .
-    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "core.controller", "--platforms", "indeed"]
+    command: ["/app/scripts/start-xvfb.sh", "python", "-m", "src.core.controller", "--platforms", "indeed"]
     env_file:
       - .env
     environment:
