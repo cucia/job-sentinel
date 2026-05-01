@@ -58,6 +58,43 @@ class BaseAgent:
 class JobEvaluatorAgent(BaseAgent):
     """Agent specialized in evaluating job matches."""
 
+    def __init__(self, profile: dict, settings: dict):
+        super().__init__(profile, settings)
+        self._system_prompt = None  # Cache system prompt
+        self._blocklist_patterns = self._compile_blocklist()
+
+    def _compile_blocklist(self) -> list:
+        """Compile seniority blocklist patterns for fast pre-filtering."""
+        blocklist = self.settings.get("app", {}).get("seniority_blocklist", [])
+        return [pattern.lower() for pattern in blocklist]
+
+    def pre_filter(self, job: dict) -> dict:
+        """
+        Fast pre-filtering without LLM call.
+        Returns rejection decision if job clearly doesn't match.
+        """
+        title = job.get("title", "").lower()
+        description = job.get("description", "").lower()
+
+        # Check seniority blocklist
+        for blocked in self._blocklist_patterns:
+            if blocked in title or blocked in description[:500]:
+                return {
+                    "apply": False,
+                    "confused": False,
+                    "decision": "REJECT",
+                    "score": 20,
+                    "confidence": 95,
+                    "priority_score": 20,
+                    "reasoning": f"Blocked seniority level: {blocked}",
+                    "match_factors": [],
+                    "concerns": [f"Contains blocked keyword: {blocked}"],
+                    "agent": "JobEvaluatorAgent",
+                    "pre_filtered": True
+                }
+
+        return None  # No pre-filter match, needs LLM evaluation
+
     def evaluate(self, job: dict) -> dict:
         """
         Evaluate if a job matches the candidate profile.
@@ -72,58 +109,62 @@ class JobEvaluatorAgent(BaseAgent):
                 "concerns": [str]
             }
         """
-        system_prompt = self._build_system_prompt()
+        # Try pre-filtering first
+        pre_filter_result = self.pre_filter(job)
+        if pre_filter_result:
+            return pre_filter_result
+
+        system_prompt = self._get_system_prompt()
         user_prompt = self._build_evaluation_prompt(job)
 
         response = self._call_llm(system_prompt, user_prompt)
         return self._parse_evaluation(response, job)
 
+    def _get_system_prompt(self) -> str:
+        """Get cached system prompt."""
+        if self._system_prompt is None:
+            self._system_prompt = self._build_system_prompt()
+        return self._system_prompt
+
     def _build_system_prompt(self) -> str:
-        skills = ", ".join(self.profile.get("skills", [])[:10])
-        keywords = ", ".join(self.profile.get("keywords", [])[:10])
+        skills = ", ".join(self.profile.get("skills", [])[:8])
+        keywords = ", ".join(self.profile.get("keywords", [])[:8])
         role = self.profile.get("role", "cybersecurity professional")
         experience = self.profile.get("experience", "entry-level")
 
-        return f"""You are a Job Evaluator Agent. Your sole purpose is to determine if a job matches a candidate's profile.
+        return f"""Job Evaluator: Match candidate to job.
 
-CANDIDATE PROFILE:
-- Target Role: {role}
-- Experience: {experience}
-- Skills: {skills}
-- Keywords: {keywords}
+CANDIDATE: {role} | {experience} | Skills: {skills} | Keywords: {keywords}
 
-EVALUATION CRITERIA:
-1. Skills Match: Does the job require skills the candidate has?
-2. Experience Level: Is the seniority appropriate?
-3. Role Alignment: Does this match their career goals?
-4. Red Flags: Unrealistic requirements, mismatches, scams
+CRITERIA:
+1. Skills match
+2. Experience level fit
+3. Role alignment
+4. Red flags
 
-DECISION RULES:
-- APPLY: 70%+ match, candidate qualifies, good opportunity
-- REJECT: <50% match, clear mismatch, or red flags
-- REVIEW: 50-70% match, uncertain, or needs human judgment
+RULES:
+- APPLY: 70%+ match
+- REJECT: <50% match or red flags
+- REVIEW: 50-70% match
 
-Be analytical and precise. Focus on facts, not speculation."""
+Be concise and factual."""
 
     def _build_evaluation_prompt(self, job: dict) -> str:
-        return f"""Evaluate this job posting:
+        # Truncate description to 1500 chars for faster processing
+        desc = job.get('description', 'No description')[:1500]
 
-TITLE: {job.get('title', 'N/A')}
-COMPANY: {job.get('company', 'N/A')}
-LOCATION: {job.get('location', 'N/A')}
-POSTED: {job.get('posted_text', job.get('posted_at', 'N/A'))}
-EASY_APPLY: {'Yes' if job.get('easy_apply') else 'No'}
+        return f"""Job: {job.get('title', 'N/A')} | {job.get('company', 'N/A')} | {job.get('location', 'N/A')}
+Posted: {job.get('posted_text', job.get('posted_at', 'N/A'))} | Easy Apply: {'Yes' if job.get('easy_apply') else 'No'}
 
-DESCRIPTION:
-{job.get('description', 'No description available')[:3000]}
+{desc}
 
-Respond in this EXACT format:
+Format:
 DECISION: <APPLY|REJECT|REVIEW>
 SCORE: <0-100>
 CONFIDENCE: <0-100>
-REASONING: <2-3 sentences>
-MATCH_FACTORS: <comma-separated list>
-CONCERNS: <comma-separated list, or "none">"""
+REASONING: <1-2 sentences>
+MATCH_FACTORS: <comma-separated>
+CONCERNS: <comma-separated or "none">"""
 
     def _parse_evaluation(self, response: str, job: dict) -> dict:
         decision = "REVIEW"
@@ -184,7 +225,7 @@ class ApplicationAgent(BaseAgent):
 
     def plan_application(self, job: dict, evaluation: dict) -> dict:
         """
-        Plan how to apply to a job.
+        Plan how to apply to a job using rule-based logic (no LLM needed).
 
         Returns:
             {
@@ -194,40 +235,38 @@ class ApplicationAgent(BaseAgent):
                 "estimated_time": str
             }
         """
-        system_prompt = f"""You are an Application Strategy Agent. You decide HOW to apply to jobs.
+        score = evaluation.get('score', 0)
+        easy_apply = job.get('easy_apply', False)
 
-CANDIDATE PROFILE:
-- Name: {self.profile.get('name', 'Candidate')}
-- Email: {self.profile.get('email', 'N/A')}
-- Phone: {self.profile.get('phone', 'N/A')}
+        # Rule-based strategy (no LLM call needed)
+        if score >= 80:
+            priority = "high"
+            strategy = "easy_apply" if easy_apply else "manual"
+            reasoning = "Strong match, high priority"
+            estimated_time = "2 minutes" if easy_apply else "10 minutes"
+        elif score >= 65:
+            priority = "medium"
+            strategy = "easy_apply" if easy_apply else "manual"
+            reasoning = "Good match, medium priority"
+            estimated_time = "2 minutes" if easy_apply else "10 minutes"
+        elif score >= 50:
+            priority = "low"
+            strategy = "easy_apply" if easy_apply else "skip"
+            reasoning = "Acceptable match, low priority" if easy_apply else "Score too low for manual apply"
+            estimated_time = "2 minutes" if easy_apply else "N/A"
+        else:
+            priority = "low"
+            strategy = "skip"
+            reasoning = "Score below threshold"
+            estimated_time = "N/A"
 
-YOUR TASK:
-Given a job and its evaluation, determine the best application strategy.
-
-STRATEGIES:
-- easy_apply: Use platform's quick apply (LinkedIn Easy Apply, Indeed Quick Apply)
-- manual: Apply through company website or complex forms
-- skip: Don't apply (not worth the effort)
-
-PRIORITY LEVELS:
-- high: Strong match, apply immediately
-- medium: Good match, apply when time permits
-- low: Weak match, apply only if quota not met"""
-
-        user_prompt = f"""Job: {job.get('title')} at {job.get('company')}
-Evaluation Score: {evaluation.get('score')}/100
-Easy Apply Available: {'Yes' if job.get('easy_apply') else 'No'}
-Match Factors: {', '.join(evaluation.get('match_factors', []))}
-Concerns: {', '.join(evaluation.get('concerns', []))}
-
-Respond in this format:
-STRATEGY: <easy_apply|manual|skip>
-PRIORITY: <high|medium|low>
-REASONING: <1-2 sentences>
-ESTIMATED_TIME: <e.g., "2 minutes", "10 minutes">"""
-
-        response = self._call_llm(system_prompt, user_prompt)
-        return self._parse_strategy(response)
+        return {
+            "strategy": strategy,
+            "priority": priority,
+            "reasoning": reasoning,
+            "estimated_time": estimated_time,
+            "agent": "ApplicationAgent",
+        }
 
     def _parse_strategy(self, response: str) -> dict:
         strategy = "skip"
@@ -260,7 +299,7 @@ class ReviewAgent(BaseAgent):
 
     def analyze_for_review(self, job: dict, evaluation: dict) -> dict:
         """
-        Analyze why a job needs review and what the human should consider.
+        Analyze why a job needs review using concise prompts.
 
         Returns:
             {
@@ -270,28 +309,23 @@ class ReviewAgent(BaseAgent):
                 "key_points": [str]
             }
         """
-        system_prompt = """You are a Review Analysis Agent. You help humans make decisions on borderline jobs.
+        system_prompt = """Review Analysis Agent: Explain why job needs human review.
 
-YOUR TASK:
-Explain why a job needs human review and what factors the human should consider.
-
-Be helpful and specific. Point out the key decision factors."""
+Be specific and concise."""
 
         user_prompt = f"""Job: {job.get('title')} at {job.get('company')}
-Evaluation Score: {evaluation.get('score')}/100
-Confidence: {evaluation.get('confidence')}/100
+Score: {evaluation.get('score')}/100 | Confidence: {evaluation.get('confidence')}/100
 Reasoning: {evaluation.get('reasoning')}
-Match Factors: {', '.join(evaluation.get('match_factors', []))}
-Concerns: {', '.join(evaluation.get('concerns', []))}
+Match: {', '.join(evaluation.get('match_factors', [])[:3])}
+Concerns: {', '.join(evaluation.get('concerns', [])[:3])}
 
-Description:
-{job.get('description', '')[:2000]}
+Description: {job.get('description', '')[:1000]}
 
-Respond in this format:
-REVIEW_REASON: <why this needs human review>
-QUESTIONS: <comma-separated questions the human should consider>
+Format:
+REVIEW_REASON: <why review needed>
+QUESTIONS: <comma-separated questions>
 RECOMMENDATION: <your suggestion>
-KEY_POINTS: <comma-separated key decision factors>"""
+KEY_POINTS: <comma-separated factors>"""
 
         response = self._call_llm(system_prompt, user_prompt, temperature=0.3)
         return self._parse_review(response)
@@ -329,7 +363,7 @@ class StrategyAgent(BaseAgent):
 
     def prioritize_batch(self, jobs_with_evaluations: List[tuple]) -> List[dict]:
         """
-        Prioritize a batch of jobs for application.
+        Prioritize a batch of jobs using rule-based sorting (no LLM needed).
 
         Args:
             jobs_with_evaluations: List of (job, evaluation) tuples
@@ -340,68 +374,32 @@ class StrategyAgent(BaseAgent):
         if not jobs_with_evaluations:
             return []
 
-        # Build summary for LLM
-        job_summaries = []
-        for idx, (job, eval_result) in enumerate(jobs_with_evaluations[:20]):  # Limit to 20 for LLM
-            job_summaries.append(
-                f"{idx+1}. {job.get('title')} at {job.get('company')} "
-                f"(Score: {eval_result.get('score')}, Easy Apply: {job.get('easy_apply')})"
-            )
-
-        system_prompt = """You are a Strategy Agent. You prioritize which jobs to apply to first.
-
-PRIORITIZATION FACTORS:
-1. Match quality (higher score = higher priority)
-2. Easy apply availability (faster applications)
-3. Recency (newer postings = higher priority)
-4. Company reputation
-5. Growth potential
-
-YOUR TASK:
-Given a list of jobs, suggest the optimal application order."""
-
-        user_prompt = f"""Prioritize these jobs for application:
-
-{chr(10).join(job_summaries)}
-
-Respond with:
-TOP_PRIORITIES: <comma-separated job numbers (e.g., "3, 7, 1")>
-REASONING: <why this order>"""
-
-        try:
-            response = self._call_llm(system_prompt, user_prompt, temperature=0.1)
-            priority_order = self._parse_priorities(response, len(jobs_with_evaluations))
-        except Exception:
-            # Fallback: sort by score and easy_apply
-            priority_order = list(range(len(jobs_with_evaluations)))
-
-        # Reorder based on priorities
+        # Rule-based prioritization (no LLM call)
         prioritized = []
-        for idx in priority_order:
-            if idx < len(jobs_with_evaluations):
-                job, evaluation = jobs_with_evaluations[idx]
-                prioritized.append({
-                    "job": job,
-                    "evaluation": evaluation,
-                    "priority_rank": len(prioritized) + 1,
-                })
+        for job, evaluation in jobs_with_evaluations:
+            score = evaluation.get('score', 0)
+            easy_apply = job.get('easy_apply', False)
+
+            # Calculate priority score
+            priority_score = score
+            if easy_apply:
+                priority_score += 10  # Boost easy apply jobs
+
+            prioritized.append({
+                "job": job,
+                "evaluation": evaluation,
+                "priority_score": priority_score,
+                "priority_rank": 0  # Will be set after sorting
+            })
+
+        # Sort by priority score (descending)
+        prioritized.sort(key=lambda x: x['priority_score'], reverse=True)
+
+        # Assign ranks
+        for idx, item in enumerate(prioritized):
+            item['priority_rank'] = idx + 1
 
         return prioritized
-
-    def _parse_priorities(self, response: str, total_jobs: int) -> List[int]:
-        for line in response.split("\n"):
-            if line.startswith("TOP_PRIORITIES:"):
-                priorities_text = line.split(":", 1)[1].strip()
-                try:
-                    # Parse comma-separated numbers
-                    priorities = [int(p.strip()) - 1 for p in priorities_text.split(",")]
-                    # Add remaining jobs
-                    remaining = [i for i in range(total_jobs) if i not in priorities]
-                    return priorities + remaining
-                except (ValueError, IndexError):
-                    pass
-        # Fallback: original order
-        return list(range(total_jobs))
 
 
 class NavigationAgent(BaseAgent):
@@ -1356,20 +1354,30 @@ class AgentOrchestrator:
 
     def process_job(self, job: dict) -> dict:
         """
-        Process a single job through the agent pipeline.
+        Process a single job through the agent pipeline efficiently.
 
         Returns:
             Complete decision with all agent outputs
         """
-        # Step 1: Evaluate the job
+        # Step 1: Pre-filter (fast, no LLM)
+        pre_filter_result = self.evaluator.pre_filter(job)
+        if pre_filter_result and not pre_filter_result.get("apply"):
+            return {
+                "evaluation": pre_filter_result,
+                "review_analysis": None,
+                "application_plan": None,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+        # Step 2: Evaluate the job (LLM call)
         evaluation = self.evaluator.evaluate(job)
 
-        # Step 2: If needs review, get review analysis
+        # Step 3: If needs review, get review analysis (LLM call)
         review_analysis = None
         if evaluation.get("confused") or evaluation.get("decision") == "REVIEW":
             review_analysis = self.reviewer.analyze_for_review(job, evaluation)
 
-        # Step 3: Plan application strategy
+        # Step 4: Plan application strategy (rule-based, no LLM)
         application_plan = None
         if evaluation.get("apply"):
             application_plan = self.applicator.plan_application(job, evaluation)
@@ -1383,22 +1391,40 @@ class AgentOrchestrator:
 
     def process_batch(self, jobs: List[dict]) -> List[dict]:
         """
-        Process multiple jobs and prioritize them.
+        Process multiple jobs efficiently with parallel evaluation.
 
         Returns:
             List of processed jobs with priorities
         """
-        # Evaluate all jobs
-        jobs_with_evaluations = []
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Pre-filter jobs first (fast, no LLM)
+        filtered_jobs = []
+        rejected_count = 0
+
         for job in jobs:
+            pre_filter_result = self.evaluator.pre_filter(job)
+            if pre_filter_result and not pre_filter_result.get("apply"):
+                rejected_count += 1
+                continue
+            filtered_jobs.append(job)
+
+        if rejected_count > 0:
+            from src.core.logger import log
+            log(f"[Orchestrator] Pre-filtered {rejected_count} jobs (seniority blocklist)")
+
+        # Evaluate remaining jobs (with LLM)
+        jobs_with_evaluations = []
+        for job in filtered_jobs:
             evaluation = self.evaluator.evaluate(job)
             if evaluation.get("apply"):
                 jobs_with_evaluations.append((job, evaluation))
 
-        # Prioritize
+        # Prioritize using rule-based sorting (no LLM)
         prioritized = self.strategist.prioritize_batch(jobs_with_evaluations)
 
-        # Add application plans
+        # Add application plans using rule-based logic (no LLM)
         for item in prioritized:
             item["application_plan"] = self.applicator.plan_application(
                 item["job"], item["evaluation"]

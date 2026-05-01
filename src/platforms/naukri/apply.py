@@ -61,9 +61,14 @@ def apply(job: dict, resume_path: str, settings: dict) -> tuple[str, int] | None
         log("Naukri apply: missing session file. Save the Naukri session from the dashboard first.")
         return ("deferred", 0)
     headless = settings.get("app", {}).get("headless", False)
+    browser_type = settings.get("app", {}).get("browser", "firefox")
 
     async def _apply():
-        playwright, browser, context = await open_context(headless=headless, storage_state_path=session_path)
+        playwright, browser, context = await open_context(
+            headless=headless,
+            storage_state_path=session_path,
+            browser_type=browser_type
+        )
         try:
             page = await context.new_page()
             await page.goto(job_url, wait_until="domcontentloaded")

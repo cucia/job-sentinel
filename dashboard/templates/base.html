@@ -20,6 +20,7 @@
       </div>
       <nav class="nav">
         <a class="nav-link {{ 'active' if current_page == 'command' else '' }}" href="{{ url_for('command_center', profile=profile_name) if profile_name is defined else url_for('command_center') }}">Command Center</a>
+        <a class="nav-link {{ 'active' if current_page == 'agents' else '' }}" href="{{ url_for('agents', profile=profile_name) if profile_name is defined else url_for('agents') }}">Agents</a>
         <a class="nav-link {{ 'active' if current_page == 'analytics' else '' }}" href="{{ url_for('analytics', profile=profile_name) if profile_name is defined else url_for('analytics') }}">Analytics</a>
         <a class="nav-link {{ 'active' if current_page == 'jobs' else '' }}" href="{{ url_for('all_jobs') }}">Jobs</a>
         <a class="nav-link {{ 'active' if current_page == 'sessions' else '' }}" href="{{ url_for('sessions_page') }}">Sessions</a>

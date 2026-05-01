@@ -9,6 +9,7 @@ app:
   use_policy: false
   easy_apply_first: true
   entry_level_only: false
+  browser: firefox  # Options: firefox (recommended), chromium, webkit
   seniority_blocklist:
     - senior
     - lead
@@ -32,11 +33,12 @@ policy:
   blocked_keywords: []
 
 ai:
-  min_score: 70
+  min_score: 50
   uncertainty_margin: 5
 
   # Multi-agent system
   use_agents: true  # Set to true to enable multi-agent system
+  use_multi_agent: true  # Enable coordinated multi-agent application system
 
   # Cloud AI Configuration (recommended)
   use_cloud: true  # Set to true to use cloud AI providers
@@ -57,8 +59,8 @@ ai:
 platforms:
   enabled:
     - linkedin
-    # - indeed
-    # - naukri
+    - indeed
+    - naukri
   sessions:
     linkedin: sessions/linkedin.json
     indeed: sessions/indeed.json
@@ -74,13 +76,12 @@ platforms:
   indeed:
     search:
       keywords:
-        - cybersecurity
-        - soc analyst
+        - software engineer
       location: India
       max_results: 100
   naukri:
     search:
       keywords:
-        - security
+        - software engineer
       location: India
       max_results: 100

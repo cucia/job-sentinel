@@ -86,18 +86,6 @@
           {% endif %}
           {% endif %}
         </div>
-
-        {% if platform == 'linkedin' %}
-        <form class="session-credentials-form" method="post" action="{{ url_for('session_linkedin_login') }}">
-          <input type="hidden" name="profile_name" value="{{ profile_name }}" />
-          <div class="session-note">Direct LinkedIn login for container-backed runs. Credentials are used for this request only and are not written into repo files.</div>
-          <label class="field-label" for="linkedin-email">LinkedIn email</label>
-          <input class="field-input" id="linkedin-email" name="linkedin_email" type="email" autocomplete="username" placeholder="you@example.com" />
-          <label class="field-label" for="linkedin-password">LinkedIn password</label>
-          <input class="field-input" id="linkedin-password" name="linkedin_password" type="password" autocomplete="current-password" placeholder="Password" />
-          <button class="control-toggle active" type="submit">Login and save session</button>
-        </form>
-        {% endif %}
       </div>
       {% endfor %}
     </div>

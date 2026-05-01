@@ -74,6 +74,7 @@ def collect_jobs(settings: dict, profile: dict) -> list:
     session_path = ensure_session(settings, "linkedin", "https://www.linkedin.com/login")
 
     headless = settings.get("app", {}).get("headless", False)
+    browser_type = settings.get("app", {}).get("browser", "firefox")
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     if not session_path:
         session_path = get_session_path(base_dir, settings, "linkedin")
@@ -96,7 +97,11 @@ def collect_jobs(settings: dict, profile: dict) -> list:
     )
 
     async def _collect():
-        playwright, browser, context = await open_context(headless=headless, storage_state_path=session_path)
+        playwright, browser, context = await open_context(
+            headless=headless,
+            storage_state_path=session_path,
+            browser_type=browser_type
+        )
         try:
             page = await context.new_page()
             page.set_default_timeout(30000)
