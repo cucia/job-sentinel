@@ -86,7 +86,22 @@ def _interactive_login_worker(platform: str, session_path: str, state: dict) -> 
     context = None
     try:
         playwright = sync_playwright().start()
-        browser = playwright.chromium.launch(headless=False)
+        # Use Firefox for better stealth (configurable)
+        browser_type = settings.get("app", {}).get("browser", "firefox") if settings else "firefox"
+
+        if browser_type == "firefox":
+            browser = playwright.firefox.launch(
+                headless=False,
+                firefox_user_prefs={
+                    'dom.webdriver.enabled': False,
+                    'useAutomationExtension': False,
+                }
+            )
+        elif browser_type == "webkit":
+            browser = playwright.webkit.launch(headless=False)
+        else:  # chromium fallback
+            browser = playwright.chromium.launch(headless=False)
+
         if os.path.exists(session_path):
             context = browser.new_context(storage_state=session_path)
         else:

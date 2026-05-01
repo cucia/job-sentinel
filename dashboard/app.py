@@ -394,35 +394,32 @@ def _get_analytics_data(db_path: str) -> dict:
 
         # Recent decisions
         recent_decisions = []
-        rows = conn.execute("""
-            SELECT title, company, platform, score, decision, ai_result, created_at
-            FROM jobs
-            WHERE ai_result IS NOT NULL
-            ORDER BY created_at DESC
-            LIMIT 10
-        """).fetchall()
+        try:
+            rows = conn.execute("""
+                SELECT title, company, platform, score, decision, created_at
+                FROM jobs
+                WHERE decision IS NOT NULL
+                ORDER BY created_at DESC
+                LIMIT 10
+            """).fetchall()
 
-        for row in rows:
-            title, company, platform, score, decision, ai_result_json, created_at = row
-            ai_result = {}
-            if ai_result_json:
-                try:
-                    import json
-                    ai_result = json.loads(ai_result_json)
-                except:
-                    pass
+            for row in rows:
+                title, company, platform, score, decision, created_at = row
 
-            recent_decisions.append({
-                'job_title': title or 'Unknown',
-                'company': company or 'Unknown',
-                'platform': (platform or 'unknown').capitalize(),
-                'score': score or 0,
-                'confidence': ai_result.get('confidence', 0),
-                'decision': decision or 'REVIEW',
-                'reasoning': ai_result.get('reasoning', ''),
-                'match_factors': ai_result.get('match_factors', [])[:3],
-                'concerns': ai_result.get('concerns', [])[:3]
-            })
+                recent_decisions.append({
+                    'job_title': title or 'Unknown',
+                    'company': company or 'Unknown',
+                    'platform': (platform or 'unknown').capitalize(),
+                    'score': score or 0,
+                    'confidence': 0,
+                    'decision': decision or 'REVIEW',
+                    'reasoning': '',
+                    'match_factors': [],
+                    'concerns': []
+                })
+        except Exception as e:
+            log(f"Error fetching recent decisions: {e}")
+            recent_decisions = []
 
     return {
         'pipeline_data': pipeline_data,
@@ -617,6 +614,36 @@ def analytics():
     context.update(analytics_data)
 
     return render_template("analytics.html", current_page="analytics", show_export=False, **context)
+
+
+@app.route("/agents")
+def agents():
+    base_dir, settings, db_path = _load_settings_and_db()
+    context = _dashboard_context(base_dir, settings, db_path)
+
+    # Get agent activity and analytics
+    agent_activity = _get_agent_activity(db_path)
+    analytics_data = _get_analytics_data(db_path)
+
+    # Get agent configuration
+    use_agents = settings.get('ai', {}).get('use_agents', False)
+    use_multi_agent = settings.get('ai', {}).get('use_multi_agent', False)
+    use_cloud = settings.get('ai', {}).get('use_cloud', False)
+    provider = settings.get('ai', {}).get('provider', 'groq')
+    model = settings.get('ai', {}).get('model', 'llama-3.1-8b-instant')
+
+    context.update({
+        'agent_activity': agent_activity,
+        'agent_stats': analytics_data.get('agent_stats', {}),
+        'recent_decisions': analytics_data.get('recent_decisions', []),
+        'use_agents': use_agents,
+        'use_multi_agent': use_multi_agent,
+        'use_cloud': use_cloud,
+        'provider': provider,
+        'model': model,
+    })
+
+    return render_template("agents.html", current_page="agents", show_export=False, **context)
 
 
 @app.route("/sessions")

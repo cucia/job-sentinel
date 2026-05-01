@@ -24,7 +24,28 @@
       "Bash(docker-compose logs *)",
       "Bash(docker-compose ps *)",
       "Bash(awk '{print $NF}')",
-      "Bash(docker-compose config *)"
+      "Bash(docker-compose config *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5000)",
+      "Bash(curl -s http://localhost:5000/command-center)",
+      "Bash(playwright install *)",
+      "Bash(curl -s http://localhost:5001)",
+      "Bash(netstat -ano)",
+      "Bash(chmod +x *)",
+      "Bash(scripts/legacy_session/create_session.bat linkedin *)",
+      "Bash(./create_session.bat naukri *)",
+      "Bash(pip uninstall *)",
+      "Bash(powershell *)",
+      "Bash(tasklist)",
+      "Bash(pip list *)",
+      "Bash(taskkill //F //IM chrome.exe)",
+      "Bash(curl -s http://localhost:5000/agents)",
+      "Bash(timeout 300 tail -f C:\\\\Users\\\\qucia\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-qucia-Music-job-sentinel\\\\bd7a7bcd-56e9-425b-826e-6f414e20638a\\\\tasks\\\\bad3v05n3.output)",
+      "Bash(timeout 300 tail -f C:\\\\Users\\\\qucia\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-qucia-Music-job-sentinel\\\\bd7a7bcd-56e9-425b-826e-6f414e20638a\\\\tasks\\\\b0hclosdu.output)",
+      "Bash(timeout 180 tail -f C:\\\\Users\\\\qucia\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-qucia-Music-job-sentinel\\\\bd7a7bcd-56e9-425b-826e-6f414e20638a\\\\tasks\\\\b1no0logr.output)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(git mv *)"
     ]
   }
 }

@@ -55,16 +55,20 @@ def collect_jobs(settings: dict, profile: dict) -> list:
             await page.wait_for_timeout(3000)
 
             await page.mouse.wheel(0, 2000)
-            await page.wait_for_timeout(1000)
+            await page.wait_for_timeout(2000)
 
-            items = await page.query_selector_all("article.jobTuple, div.jobTuple")
+            # Try multiple selector patterns for job cards
+            items = await page.query_selector_all("article.jobTuple, div.jobTuple, div[class*='jobTuple'], article[class*='job'], div.srp-jobtuple-wrapper")
+            log(f"Naukri: found {len(items)} potential job items")
+
             jobs: list = []
             seen = set()
             for item in items:
-                title_el = await item.query_selector("a.title")
-                company_el = await item.query_selector("a.subTitle")
-                location_el = await item.query_selector("span.locWdth, span.loc-wrap")
-                time_el = await item.query_selector("span.job-post-day, span.job-posted, span.type")
+                # Try multiple selector patterns for title
+                title_el = await item.query_selector("a.title, a[class*='title'], h2 a, h3 a, a.job-title")
+                company_el = await item.query_selector("a.subTitle, a[class*='subTitle'], a.comp-name, span.comp-name, div.comp-name")
+                location_el = await item.query_selector("span.locWdth, span.loc-wrap, span[class*='location'], li.location, span.location")
+                time_el = await item.query_selector("span.job-post-day, span.job-posted, span.type, span[class*='posted']")
 
                 job_url = await title_el.get_attribute("href") if title_el else ""
                 if not job_url:

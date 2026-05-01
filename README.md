@@ -16,23 +16,28 @@ The system uses 8 specialized AI agents working in coordination to maximize your
 ## 🚀 Quick Start
 
 ```bash
-# 1. Install dependencies
-pip install -r requirements.txt
-playwright install chromium
+# 1. Clone and setup
+git clone https://github.com/cucia/job-sentinel.git
+cd job-sentinel
 
-# 2. Configure settings
-cp configs/settings.yaml.example configs/settings.yaml
-# Edit settings.yaml with your preferences
+# 2. Run with Docker (recommended)
+docker-compose up
 
-# 3. Run the system
-python -m src.core.controller --platforms linkedin &
-python -m dashboard.app
-
-# 4. Open dashboard
+# 3. Open dashboard
 # Visit http://localhost:5000
 ```
 
-## How it works
+**📚 Full documentation:** [docs/README.md](docs/README.md)
+
+## 📖 Documentation
+
+- **[Complete Documentation](docs/README.md)** - Full documentation index
+- **[Quick Start Guide](docs/setup/QUICKSTART.md)** - Get started in 5 minutes
+- **[System Ready Guide](docs/SYSTEM_READY.md)** - Production deployment
+- **[Agent Optimizations](docs/architecture/AGENT_OPTIMIZATIONS.md)** - Performance details
+- **[Session Management](docs/guides/SESSION_CREATION_GUIDE.md)** - Platform authentication
+
+## 📊 Features
 
 1. **Collect** - Scrape jobs from LinkedIn, Indeed, Naukri
 2. **Evaluate** - AI agents analyze job-candidate fit with detailed reasoning
