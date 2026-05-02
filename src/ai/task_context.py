@@ -27,6 +27,7 @@ class AgentType(Enum):
     FORM_DETECTOR = "form_detector"
     FORM_FILLER = "form_filler"
     APPLICATION = "application"
+    STRATEGY = "strategy"
     RECOVERY = "recovery"
     REVIEW = "review"
 
@@ -39,6 +40,17 @@ class AgentAttempt:
     action: str
     result: str
     error: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class AgentTransition:
+    """Record of a handoff or routing decision between agents."""
+    timestamp: str
+    source_agent: Optional[str]
+    target_agent: str
+    reason: str
+    status: str
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -92,9 +104,12 @@ class TaskContext:
 
     # Execution tracking
     attempts: List[AgentAttempt] = field(default_factory=list)
+    transitions: List[AgentTransition] = field(default_factory=list)
+    agent_statuses: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
     retry_count: int = 0
     max_retries: int = 2
+    last_transition_reason: Optional[str] = None
 
     # Results
     submission_successful: bool = False
@@ -122,6 +137,37 @@ class TaskContext:
     def add_error(self, error: str) -> None:
         """Add an error to the error log."""
         self.errors.append(f"[{datetime.now(timezone.utc).isoformat()}] {error}")
+        self.updated_at = datetime.now(timezone.utc).isoformat()
+
+    def update_agent_status(self, agent_id: str, status: str, **metadata) -> None:
+        """Update tracked status for an agent involved in this task."""
+        self.agent_statuses[agent_id] = {
+            "status": status,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            **metadata,
+        }
+        self.updated_at = datetime.now(timezone.utc).isoformat()
+
+    def add_transition(
+        self,
+        target_agent: str,
+        reason: str,
+        status: str,
+        source_agent: Optional[str] = None,
+        **metadata,
+    ) -> None:
+        """Record a routing decision between agents."""
+        transition = AgentTransition(
+            timestamp=datetime.now(timezone.utc).isoformat(),
+            source_agent=source_agent or self.current_agent,
+            target_agent=target_agent,
+            reason=reason,
+            status=status,
+            metadata=metadata,
+        )
+        self.transitions.append(transition)
+        self.last_transition_reason = reason
+        self.current_agent = target_agent
         self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def can_retry(self) -> bool:
@@ -181,8 +227,21 @@ class TaskContext:
                 }
                 for a in self.attempts
             ],
+            "transitions": [
+                {
+                    "timestamp": t.timestamp,
+                    "source_agent": t.source_agent,
+                    "target_agent": t.target_agent,
+                    "reason": t.reason,
+                    "status": t.status,
+                    "metadata": t.metadata,
+                }
+                for t in self.transitions
+            ],
+            "agent_statuses": self.agent_statuses,
             "errors": self.errors,
             "retry_count": self.retry_count,
+            "last_transition_reason": self.last_transition_reason,
             "submission_successful": self.submission_successful,
             "confirmation_message": self.confirmation_message,
             "created_at": self.created_at,

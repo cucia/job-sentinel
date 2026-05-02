@@ -1,7 +1,2 @@
-from datetime import datetime
-from .storage import get_daily_apply_count
-
-
-def can_apply(db_path: str, daily_limit: int) -> bool:
-    today = datetime.utcnow().date().isoformat()
-    return get_daily_apply_count(db_path, today) < daily_limit
+def can_apply(db_path: str, limit_override: int | None = None) -> bool:
+    return True

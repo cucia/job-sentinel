@@ -4,9 +4,12 @@ import sqlite3
 from datetime import datetime
 
 
+_SQLITE_TIMEOUT_SECONDS = 30
+
+
 def _connect(db_path: str) -> sqlite3.Connection:
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    return sqlite3.connect(db_path)
+    return sqlite3.connect(db_path, timeout=_SQLITE_TIMEOUT_SECONDS)
 
 
 def init_db(db_path: str) -> None:

@@ -6,16 +6,15 @@
 <div class="command-center">
   <div class="cc-header">
     <h1>AI Agent System</h1>
-    <p class="cc-subtitle">Multi-agent job evaluation and application system</p>
+    <p class="cc-subtitle">Control individual agents, watch live coordination, and inspect recent decisions.</p>
   </div>
 
-  <!-- Agent Status Overview -->
   <div class="metrics-grid">
     <div class="metric-card">
-      <div class="metric-label">Active Agents</div>
-      <div class="metric-value">{{ '3' if use_multi_agent else '0' }}</div>
+      <div class="metric-label">Enabled Agents</div>
+      <div class="metric-value" id="enabledAgentsCount">{{ enabled_agent_count or 0 }}</div>
       <div class="metric-status status-{{ 'ok' if use_multi_agent else 'warn' }}">
-        {{ 'Running' if use_multi_agent else 'Disabled' }}
+        {{ 'Ready' if use_multi_agent else 'Disabled' }}
       </div>
     </div>
 
@@ -32,81 +31,106 @@
     </div>
 
     <div class="metric-card">
-      <div class="metric-label">Success Rate</div>
-      <div class="metric-value">{{ agent_stats.success_rate or 0 }}%</div>
-      <div class="metric-status status-ok">Applied/Total</div>
+      <div class="metric-label">Event Stream</div>
+      <div class="metric-value" id="eventCount">{{ agent_events|length }}</div>
+      <div class="metric-status status-ok" id="agentEventStatus">Streaming</div>
     </div>
   </div>
 
-  <!-- Agent Configuration -->
   <div class="section">
     <div class="section-header">
       <h2>Agent Configuration</h2>
     </div>
     <div class="config-grid">
       <div class="config-item">
-        <span class="config-label">Multi-Agent System:</span>
-        <span class="config-value status-{{ 'ok' if use_multi_agent else 'warn' }}">
-          {{ 'Enabled' if use_multi_agent else 'Disabled' }}
-        </span>
+        <span class="config-label">Multi-Agent System</span>
+        <span class="config-value status-{{ 'ok' if use_multi_agent else 'warn' }}">{{ 'Enabled' if use_multi_agent else 'Disabled' }}</span>
       </div>
       <div class="config-item">
-        <span class="config-label">Cloud AI:</span>
-        <span class="config-value status-{{ 'ok' if use_cloud else 'warn' }}">
-          {{ 'Enabled' if use_cloud else 'Disabled' }}
-        </span>
+        <span class="config-label">Cloud AI</span>
+        <span class="config-value status-{{ 'ok' if use_cloud else 'warn' }}">{{ 'Enabled' if use_cloud else 'Disabled' }}</span>
       </div>
       <div class="config-item">
-        <span class="config-label">Provider:</span>
+        <span class="config-label">Provider</span>
         <span class="config-value">{{ provider or 'None' }}</span>
       </div>
       <div class="config-item">
-        <span class="config-label">Model:</span>
+        <span class="config-label">Model</span>
         <span class="config-value">{{ model or 'None' }}</span>
       </div>
     </div>
   </div>
 
-  <!-- Active Agents -->
   <div class="section">
     <div class="section-header">
-      <h2>Active Agents</h2>
+      <h2>Agent Control Plane</h2>
+      <span class="status-pill status-ok" id="agentRegistryStatus">Synced</span>
     </div>
-    <div class="agents-list">
-      {% if use_multi_agent %}
-      <div class="agent-card">
-        <div class="agent-icon">🎯</div>
-        <div class="agent-info">
-          <div class="agent-name">JobEvaluatorAgent</div>
-          <div class="agent-desc">Evaluates job matches against profile</div>
-          <div class="agent-status status-ok">Active</div>
+    <div class="agents-list" id="agentCards">
+      {% if agent_registry %}
+        {% for agent in agent_registry %}
+        <div class="agent-card status-{{ 'ok' if agent.enabled else 'neutral' }}" data-agent-id="{{ agent.id }}" data-agent-name="{{ agent.display_name }}">
+          <div class="agent-card-top">
+            <div>
+              <div class="agent-name-row">
+                <div class="agent-name">{{ agent.display_name }}</div>
+                <span class="agent-stage">{{ agent.stage|capitalize }}</span>
+              </div>
+              <div class="agent-desc">{{ agent.duty }}</div>
+            </div>
+            <button
+              class="toggle-btn {{ 'enabled' if agent.enabled else 'disabled' }}"
+              type="button"
+              onclick="toggleAgent('{{ agent.id }}')"
+              data-toggle-agent="{{ agent.id }}"
+            >
+              {{ 'On' if agent.enabled else 'Off' }}
+            </button>
+          </div>
+          <div class="agent-meta-grid">
+            <div class="agent-meta-item">
+              <span class="meta-label">Health</span>
+              <span class="meta-value agent-status-badge status-{{ 'ok' if agent.status in ['active', 'idle'] else 'warn' if agent.status == 'degraded' else 'neutral' }}" data-agent-status="{{ agent.id }}">
+                {{ agent.status|replace('_', ' ')|title }}
+              </span>
+            </div>
+            <div class="agent-meta-item">
+              <span class="meta-label">Mode</span>
+              <span class="meta-value">{{ 'Required' if agent.required else 'Optional' }}</span>
+            </div>
+            <div class="agent-meta-item">
+              <span class="meta-label">Fallback</span>
+              <span class="meta-value">{{ agent.fallback|replace('_', ' ')|title }}</span>
+            </div>
+            <div class="agent-meta-item">
+              <span class="meta-label">Last Seen</span>
+              <span class="meta-value" data-agent-last-seen="{{ agent.id }}">{{ agent.last_seen or 'Waiting' }}</span>
+            </div>
+          </div>
+          <div class="agent-reason" data-agent-reason="{{ agent.id }}">{{ agent.reason or 'No issues reported.' }}</div>
         </div>
-      </div>
-      <div class="agent-card">
-        <div class="agent-icon">📝</div>
-        <div class="agent-info">
-          <div class="agent-name">ApplicationAgent</div>
-          <div class="agent-desc">Handles job applications and form filling</div>
-          <div class="agent-status status-ok">Active</div>
-        </div>
-      </div>
-      <div class="agent-card">
-        <div class="agent-icon">🔍</div>
-        <div class="agent-info">
-          <div class="agent-name">CollectorAgent</div>
-          <div class="agent-desc">Collects jobs from multiple platforms</div>
-          <div class="agent-status status-ok">Active</div>
-        </div>
-      </div>
+        {% endfor %}
       {% else %}
-      <div class="empty-state">
-        <p>Multi-agent system is disabled. Enable it in settings to activate agents.</p>
-      </div>
+        <div class="empty-state">
+          <p>No agents are registered yet.</p>
+        </div>
       {% endif %}
     </div>
   </div>
 
-  <!-- Live Agent Activity -->
+  <div class="section graph-section">
+    <div class="section-header">
+      <h2>Live Agent Communication Graph</h2>
+      <span class="status-pill status-ok" id="graphStatus">Live</span>
+    </div>
+    <div class="graph-shell">
+      <svg id="agentGraph" class="agent-graph" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="graph-overlay">
+        <div class="graph-hint">Transparent live view of delegations, failures, and disabled agents.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="section">
     <div class="section-header">
       <h2>Live Agent Activity</h2>
@@ -126,13 +150,58 @@
         {% endfor %}
       {% else %}
         <div class="empty-state">
-          <p>No agent activity yet. Agents will appear here when they start evaluating jobs.</p>
+          <p>No agent activity yet. Activity will appear here as jobs move through the system.</p>
         </div>
       {% endif %}
     </div>
   </div>
 
-  <!-- Recent Decisions -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Recent Agent Events</h2>
+      <span class="status-pill status-ok" id="recentEventStatus">Live</span>
+    </div>
+    <div class="event-feed" id="agentEventFeed">
+      {% if agent_events %}
+        {% for event in agent_events[:20] %}
+        <div class="event-item level-{{ event.level or 'info' }}">
+          <div class="event-header-row">
+            <span class="event-time">{{ event.timestamp }}</span>
+            <span class="event-type">{{ event.event_type|replace('_', ' ')|title }}</span>
+          </div>
+          <div class="event-body">
+            <span class="event-agent">{{ event.agent or 'Unknown' }}</span>
+            {% if event.target_agent %}
+            <span class="event-arrow">→</span>
+            <span class="event-target">{{ event.target_agent }}</span>
+            {% endif %}
+            <span class="event-reason">{{ event.reason or 'No reason provided.' }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <p>No structured agent events yet. They will appear here in real time.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h2>Live Agent Communication Log</h2>
+      <div class="section-actions">
+        <button class="btn-secondary" type="button" onclick="clearLogs()">Clear Logs</button>
+        <span class="status-pill status-ok" id="logStreamStatus">Streaming</span>
+      </div>
+    </div>
+    <div class="log-stream" id="logStream">
+      <div class="empty-state">
+        <p>Waiting for agent logs. Logs will appear here in real time when agents start working.</p>
+      </div>
+    </div>
+  </div>
+
   <div class="section">
     <div class="section-header">
       <h2>Recent AI Decisions</h2>
@@ -204,15 +273,21 @@
   margin-bottom: 2rem;
 }
 
-.metric-card {
+.metric-card,
+.section {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 12px;
+}
+
+.metric-card {
   padding: 1.5rem;
   transition: all 0.2s ease;
 }
 
-.metric-card:hover {
+.metric-card:hover,
+.agent-card:hover,
+.decision-card:hover {
   border-color: var(--border-light);
   transform: translateY(-2px);
 }
@@ -234,18 +309,19 @@
   letter-spacing: -0.5px;
 }
 
-.metric-status {
-  font-size: 0.875rem;
+.metric-status,
+.status-pill,
+.agent-status-badge,
+.decision-badge,
+.activity-result {
+  font-size: 0.75rem;
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  display: inline-block;
+  border-radius: 999px;
   font-weight: 500;
+  display: inline-block;
 }
 
 .section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -254,6 +330,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
@@ -266,126 +343,326 @@
   color: var(--text-primary);
 }
 
-.config-grid {
+.section-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.config-grid,
+.agents-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 1rem;
+}
+
+.config-grid {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.config-item,
+.agent-card,
+.decision-card,
+.event-item {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
 }
 
 .config-item {
   display: flex;
   justify-content: space-between;
   padding: 0.75rem;
-  background: var(--bg-tertiary);
   border-radius: 8px;
-  border: 1px solid var(--border);
 }
 
-.config-label {
+.config-label,
+.meta-label {
   font-weight: 500;
   color: var(--text-secondary);
 }
 
-.config-value {
-  font-family: 'Courier New', monospace;
+.config-value,
+.meta-value {
   color: var(--text-primary);
 }
 
 .agents-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
 }
 
 .agent-card {
-  display: flex;
-  gap: 1rem;
   padding: 1rem;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--bg-tertiary);
   transition: all 0.2s ease;
 }
 
-.agent-card:hover {
-  border-color: var(--border-light);
-  transform: translateY(-2px);
+.agent-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
 }
 
-.agent-icon {
-  font-size: 2rem;
-}
-
-.agent-info {
-  flex: 1;
+.agent-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .agent-name {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.agent-desc {
+.agent-stage {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.agent-desc,
+.agent-reason,
+.decision-reasoning,
+.activity-action,
+.event-reason {
   font-size: 0.875rem;
   color: var(--text-secondary);
-  margin-bottom: 0.5rem;
 }
 
-.agent-status {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 8px;
-  display: inline-block;
-  font-weight: 500;
+.agent-desc {
+  margin-top: 0.35rem;
 }
 
-.activity-feed {
-  max-height: 400px;
+.agent-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.agent-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.agent-reason {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+}
+
+.toggle-btn,
+.btn-secondary {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+
+.toggle-btn {
+  min-width: 72px;
+  padding: 0.5rem 0.85rem;
+  font-weight: 600;
+}
+
+.toggle-btn.enabled {
+  background: rgba(34, 197, 94, 0.16);
+  color: var(--status-success);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.toggle-btn.disabled {
+  background: rgba(107, 114, 128, 0.15);
+  color: var(--text-secondary);
+}
+
+.toggle-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.btn-secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+}
+
+.btn-secondary:hover,
+.toggle-btn:hover {
+  filter: brightness(1.08);
+}
+
+.graph-section {
+  overflow: hidden;
+}
+
+.graph-shell {
+  position: relative;
+  min-height: 520px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.18), transparent 30%),
+    radial-gradient(circle at 80% 25%, rgba(168, 85, 247, 0.16), transparent 32%),
+    radial-gradient(circle at 50% 80%, rgba(34, 197, 94, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.1));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.agent-graph {
+  width: 100%;
+  height: 520px;
+  display: block;
+}
+
+.graph-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.graph-hint {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.5);
+  color: rgba(226, 232, 240, 0.9);
+  font-size: 0.8rem;
+}
+
+.activity-feed,
+.log-stream,
+.event-feed {
+  max-height: 420px;
   overflow-y: auto;
 }
 
 .activity-item {
   display: grid;
-  grid-template-columns: 80px 200px 1fr 100px;
+  grid-template-columns: 88px 210px 1fr 100px;
   gap: 1rem;
   padding: 0.75rem;
   border-bottom: 1px solid var(--border);
   align-items: center;
-  transition: background 0.2s ease;
-}
-
-.activity-item:hover {
-  background: var(--bg-tertiary);
 }
 
 .activity-item:last-child {
   border-bottom: none;
 }
 
-.activity-time {
-  font-size: 0.875rem;
+.activity-time,
+.event-time,
+.log-timestamp {
+  font-size: 0.75rem;
   color: var(--text-muted);
   font-family: 'Courier New', monospace;
 }
 
-.activity-agent {
-  font-weight: 500;
-  font-size: 0.875rem;
+.activity-agent,
+.event-agent,
+.event-target,
+.log-agent {
   color: var(--text-primary);
+  font-weight: 600;
 }
 
-.activity-action {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+.event-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.activity-result {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
+.event-item {
+  padding: 0.9rem;
+  border-radius: 10px;
+}
+
+.event-header-row,
+.event-body {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.event-header-row {
+  margin-bottom: 0.35rem;
+}
+
+.event-type,
+.event-arrow {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.log-stream {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  text-align: center;
-  font-weight: 500;
+  padding: 1rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.log-entry {
+  padding: 0.5rem;
+  margin-bottom: 0.25rem;
+  border-left: 3px solid var(--border);
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.log-entry.level-info,
+.event-item.level-info {
+  border-left-color: #3b82f6;
+}
+
+.log-entry.level-success,
+.event-item.level-success {
+  border-left-color: #22c55e;
+}
+
+.log-entry.level-warning,
+.event-item.level-warning {
+  border-left-color: #f59e0b;
+}
+
+.log-entry.level-error,
+.event-item.level-error {
+  border-left-color: #ef4444;
+}
+
+.log-entry.level-debug {
+  border-left-color: #6b7280;
+  opacity: 0.75;
+}
+
+.log-job {
+  color: #8b5cf6;
+  font-style: italic;
+  margin-right: 0.5rem;
+}
+
+.log-message {
+  color: var(--text-primary);
 }
 
 .decisions-list {
@@ -396,21 +673,15 @@
 
 .decision-card {
   padding: 1rem;
-  border: 1px solid var(--border);
   border-radius: 12px;
-  background: var(--bg-tertiary);
   transition: all 0.2s ease;
-}
-
-.decision-card:hover {
-  border-color: var(--border-light);
-  transform: translateY(-2px);
 }
 
 .decision-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   margin-bottom: 0.5rem;
 }
 
@@ -420,24 +691,10 @@
   color: var(--text-primary);
 }
 
-.decision-badge {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
 .decision-meta {
   font-size: 0.875rem;
   color: var(--text-muted);
   margin-bottom: 0.5rem;
-}
-
-.decision-reasoning {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  margin: 0.5rem 0;
-  font-style: italic;
 }
 
 .decision-factors {
@@ -460,7 +717,7 @@
 
 .empty-state {
   text-align: center;
-  padding: 3rem;
+  padding: 2rem;
   color: var(--text-muted);
 }
 
@@ -482,38 +739,394 @@
   border: 1px solid var(--border);
 }
 
-.status-pill {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-weight: 500;
+@media (max-width: 900px) {
+  .activity-item {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    align-items: flex-start;
+  }
+
+  .agent-card-top,
+  .decision-header,
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .agent-meta-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 
 <script>
-// WebSocket updates for agent activity
-socket.on('agent_activity', (data) => {
-  console.log('Agent activity update:', data);
-  // Update activity feed in real-time
-  const feed = document.getElementById('agentActivityFeed');
-  if (feed && data.activity) {
-    const item = document.createElement('div');
-    item.className = 'activity-item';
-    item.innerHTML = `
-      <div class="activity-time">${data.activity.timestamp}</div>
-      <div class="activity-agent">${data.activity.agent}</div>
-      <div class="activity-action">${data.activity.action}</div>
-      <div class="activity-result status-${data.activity.result === 'APPLY' ? 'ok' : 'warn'}">
-        ${data.activity.result}
-      </div>
-    `;
-    feed.insertBefore(item, feed.firstChild);
+const initialAgents = {{ agent_registry | tojson }};
+const initialEvents = {{ agent_events | tojson }};
+const agentState = new Map(initialAgents.map(agent => [agent.id, { ...agent }]));
+const eventState = [...initialEvents];
+const displayNameToId = new Map(initialAgents.map(agent => [agent.display_name, agent.id]));
 
-    // Keep only last 20 items
-    while (feed.children.length > 20) {
-      feed.removeChild(feed.lastChild);
-    }
+const graphLayout = {
+  evaluator: { x: 160, y: 120, z: 0.8 },
+  strategy: { x: 350, y: 80, z: 0.6 },
+  review: { x: 350, y: 220, z: 0.35 },
+  application: { x: 520, y: 150, z: 0.65 },
+  navigator: { x: 690, y: 90, z: 0.8 },
+  form_detector: { x: 850, y: 170, z: 0.55 },
+  form_filler: { x: 690, y: 280, z: 0.7 },
+  recovery: { x: 520, y: 360, z: 0.45 }
+};
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text ?? '';
+  return div.innerHTML;
+}
+
+function formatTimestamp(value) {
+  if (!value) return 'Waiting';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleTimeString();
+}
+
+function statusClass(status) {
+  if (status === 'active' || status === 'idle') return 'status-ok';
+  if (status === 'degraded') return 'status-warn';
+  return 'status-neutral';
+}
+
+function updateAgentCard(agent) {
+  const card = document.querySelector(`[data-agent-id="${agent.id}"]`);
+  if (!card) return;
+
+  card.classList.remove('status-ok', 'status-neutral', 'status-warn');
+  card.classList.add(agent.enabled ? 'status-ok' : 'status-neutral');
+
+  const toggle = card.querySelector(`[data-toggle-agent="${agent.id}"]`);
+  if (toggle) {
+    toggle.textContent = agent.enabled ? 'On' : 'Off';
+    toggle.classList.toggle('enabled', agent.enabled);
+    toggle.classList.toggle('disabled', !agent.enabled);
+    toggle.disabled = false;
   }
+
+  const statusEl = card.querySelector(`[data-agent-status="${agent.id}"]`);
+  if (statusEl) {
+    statusEl.textContent = (agent.status || 'idle').replaceAll('_', ' ');
+    statusEl.className = `meta-value agent-status-badge ${statusClass(agent.status)}`;
+  }
+
+  const lastSeen = card.querySelector(`[data-agent-last-seen="${agent.id}"]`);
+  if (lastSeen) {
+    lastSeen.textContent = formatTimestamp(agent.last_seen);
+  }
+
+  const reason = card.querySelector(`[data-agent-reason="${agent.id}"]`);
+  if (reason) {
+    reason.textContent = agent.reason || 'No issues reported.';
+  }
+}
+
+function updateEnabledCount() {
+  const count = [...agentState.values()].filter(agent => agent.enabled).length;
+  const el = document.getElementById('enabledAgentsCount');
+  if (el) el.textContent = count;
+}
+
+function normalizeAgentIdFromEvent(event) {
+  return event?.metadata?.agent_id
+    || event?.metadata?.target_agent_id
+    || displayNameToId.get(event?.agent)
+    || displayNameToId.get(event?.target_agent)
+    || null;
+}
+
+function mergeAgentStateFromEvent(event) {
+  const primaryId = event?.metadata?.agent_id || displayNameToId.get(event?.agent);
+  if (primaryId && agentState.has(primaryId)) {
+    const agent = agentState.get(primaryId);
+    agent.status = event.status || agent.status;
+    agent.last_seen = event.timestamp || agent.last_seen;
+    agent.last_event = event.event_type || agent.last_event;
+    agent.reason = event.reason || agent.reason;
+    if (event.event_type === 'disabled') agent.enabled = false;
+    updateAgentCard(agent);
+  }
+
+  const targetId = event?.metadata?.target_agent_id || displayNameToId.get(event?.target_agent);
+  if (event?.event_type === 'delegation' && targetId && agentState.has(targetId)) {
+    const target = agentState.get(targetId);
+    target.last_seen = event.timestamp || target.last_seen;
+    target.reason = event.reason || target.reason;
+    updateAgentCard(target);
+  }
+
+  updateEnabledCount();
+}
+
+function renderEventFeed() {
+  const feed = document.getElementById('agentEventFeed');
+  if (!feed) return;
+
+  if (!eventState.length) {
+    feed.innerHTML = '<div class="empty-state"><p>No structured agent events yet. They will appear here in real time.</p></div>';
+  } else {
+    feed.innerHTML = eventState.slice(0, 20).map(event => `
+      <div class="event-item level-${escapeHtml(event.level || 'info')}">
+        <div class="event-header-row">
+          <span class="event-time">${escapeHtml(formatTimestamp(event.timestamp))}</span>
+          <span class="event-type">${escapeHtml((event.event_type || 'event').replaceAll('_', ' '))}</span>
+        </div>
+        <div class="event-body">
+          <span class="event-agent">${escapeHtml(event.agent || 'Unknown')}</span>
+          ${event.target_agent ? `<span class="event-arrow">→</span><span class="event-target">${escapeHtml(event.target_agent)}</span>` : ''}
+          <span class="event-reason">${escapeHtml(event.reason || 'No reason provided.')}</span>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const count = document.getElementById('eventCount');
+  if (count) count.textContent = eventState.length;
+}
+
+function eventEdgeWeight(sourceId, targetId) {
+  return eventState.reduce((count, event) => {
+    const source = event?.metadata?.source_agent_id || displayNameToId.get(event?.agent);
+    const target = event?.metadata?.target_agent_id || displayNameToId.get(event?.target_agent);
+    return source === sourceId && target === targetId ? count + 1 : count;
+  }, 0);
+}
+
+function latestEventForAgent(agentId) {
+  return eventState.find(event => {
+    const primaryId = event?.metadata?.agent_id || displayNameToId.get(event?.agent);
+    const targetId = event?.metadata?.target_agent_id || displayNameToId.get(event?.target_agent);
+    return primaryId === agentId || targetId === agentId;
+  });
+}
+
+function renderGraph() {
+  const svg = document.getElementById('agentGraph');
+  if (!svg) return;
+
+  const agents = [...agentState.values()];
+  const edges = [
+    ['evaluator', 'strategy'],
+    ['evaluator', 'review'],
+    ['strategy', 'application'],
+    ['application', 'navigator'],
+    ['navigator', 'form_detector'],
+    ['form_detector', 'form_filler'],
+    ['navigator', 'recovery'],
+    ['form_detector', 'recovery'],
+    ['form_filler', 'recovery']
+  ];
+
+  const defs = `
+    <defs>
+      <filter id="nodeGlow" x="-50%" y="-50%" width="200%" height="200%">
+        <feGaussianBlur stdDeviation="6" result="glow"></feGaussianBlur>
+        <feMerge>
+          <feMergeNode in="glow"></feMergeNode>
+          <feMergeNode in="SourceGraphic"></feMergeNode>
+        </feMerge>
+      </filter>
+      <linearGradient id="edgeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="rgba(59,130,246,0.8)"></stop>
+        <stop offset="100%" stop-color="rgba(168,85,247,0.75)"></stop>
+      </linearGradient>
+    </defs>
+  `;
+
+  const edgeMarkup = edges.map(([sourceId, targetId]) => {
+    const source = graphLayout[sourceId];
+    const target = graphLayout[targetId];
+    if (!source || !target) return '';
+
+    const weight = eventEdgeWeight(sourceId, targetId);
+    const opacity = weight > 0 ? Math.min(0.9, 0.25 + weight * 0.18) : 0.18;
+    const width = weight > 0 ? Math.min(7, 2 + weight) : 2;
+    const animated = weight > 0 ? 'edge-pulse' : '';
+
+    return `
+      <g class="graph-edge ${animated}" data-edge="${sourceId}-${targetId}">
+        <line x1="${source.x}" y1="${source.y}" x2="${target.x}" y2="${target.y}" stroke="url(#edgeGradient)" stroke-width="${width}" stroke-linecap="round" opacity="${opacity}"></line>
+      </g>
+    `;
+  }).join('');
+
+  const nodeMarkup = agents.map(agent => {
+    const point = graphLayout[agent.id] || { x: 500, y: 260, z: 0.5 };
+    const size = 30 + Math.round(point.z * 16);
+    const glow = agent.enabled ? (agent.status === 'degraded' ? '#f59e0b' : '#60a5fa') : '#64748b';
+    const opacity = agent.enabled ? 1 : 0.45;
+    const latest = latestEventForAgent(agent.id);
+    const label = escapeHtml(agent.display_name);
+    const status = escapeHtml((agent.status || 'idle').replaceAll('_', ' '));
+    const subtitle = escapeHtml(latest?.reason || agent.duty);
+
+    return `
+      <g class="graph-node" data-node="${agent.id}" opacity="${opacity}">
+        <circle cx="${point.x}" cy="${point.y}" r="${size}" fill="rgba(15,23,42,0.78)" stroke="${glow}" stroke-width="2.5" filter="url(#nodeGlow)"></circle>
+        <circle cx="${point.x - 10}" cy="${point.y - 12}" r="${Math.max(5, Math.round(size * 0.22))}" fill="rgba(255,255,255,0.28)"></circle>
+        <text x="${point.x}" y="${point.y + size + 22}" text-anchor="middle" fill="rgba(241,245,249,0.96)" font-size="16" font-weight="700">${label}</text>
+        <text x="${point.x}" y="${point.y + size + 42}" text-anchor="middle" fill="rgba(148,163,184,0.95)" font-size="12">${status}</text>
+        <text x="${point.x}" y="${point.y + size + 60}" text-anchor="middle" fill="rgba(148,163,184,0.78)" font-size="11">${subtitle.slice(0, 32)}</text>
+      </g>
+    `;
+  }).join('');
+
+  svg.innerHTML = `${defs}<style>
+    .edge-pulse line { animation: edgePulse 1.4s ease-in-out infinite; }
+    @keyframes edgePulse {
+      0%, 100% { opacity: 0.35; }
+      50% { opacity: 1; }
+    }
+  </style>${edgeMarkup}${nodeMarkup}`;
+}
+
+async function toggleAgent(agentId) {
+  const button = document.querySelector(`[data-toggle-agent="${agentId}"]`);
+  if (button) button.disabled = true;
+
+  try {
+    const response = await fetch(`/toggle/agent/${agentId}`, { method: 'POST' });
+    const data = await response.json();
+    if (!response.ok || data.status !== 'success') {
+      throw new Error(data.message || 'Toggle failed');
+    }
+
+    (data.agent_registry || []).forEach(agent => {
+      agentState.set(agent.id, { ...agent });
+      displayNameToId.set(agent.display_name, agent.id);
+      updateAgentCard(agent);
+    });
+
+    updateEnabledCount();
+    renderGraph();
+
+    const status = document.getElementById('agentRegistryStatus');
+    if (status) {
+      status.textContent = 'Updated';
+      status.className = 'status-pill status-ok';
+    }
+  } catch (error) {
+    const status = document.getElementById('agentRegistryStatus');
+    if (status) {
+      status.textContent = 'Update Failed';
+      status.className = 'status-pill status-warn';
+    }
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function prependActivity(activity) {
+  const feed = document.getElementById('agentActivityFeed');
+  if (!feed || !activity) return;
+
+  const emptyState = feed.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  const item = document.createElement('div');
+  item.className = 'activity-item';
+  item.innerHTML = `
+    <div class="activity-time">${escapeHtml(activity.timestamp || '')}</div>
+    <div class="activity-agent">${escapeHtml(activity.agent || 'Unknown')}</div>
+    <div class="activity-action">${escapeHtml(activity.action || '')}</div>
+    <div class="activity-result ${activity.result === 'APPLY' ? 'status-ok' : activity.result === 'REVIEW' ? 'status-warn' : 'status-neutral'}">${escapeHtml(activity.result || 'UNKNOWN')}</div>
+  `;
+  feed.insertBefore(item, feed.firstChild);
+
+  while (feed.children.length > 20) {
+    feed.removeChild(feed.lastChild);
+  }
+}
+
+function prependLog(data) {
+  const logStream = document.getElementById('logStream');
+  if (!logStream) return;
+
+  const emptyState = logStream.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+
+  const logEntry = document.createElement('div');
+  logEntry.className = `log-entry level-${data.level || 'info'}`;
+  const timestamp = new Date(data.timestamp).toLocaleTimeString();
+  const agent = data.agent ? `[${data.agent}]` : '';
+  const job = data.job_title ? `"${data.job_title}"` : '';
+
+  logEntry.innerHTML = `
+    <span class="log-timestamp">${escapeHtml(timestamp)}</span>
+    ${agent ? `<span class="log-agent">${escapeHtml(agent)}</span>` : ''}
+    ${job ? `<span class="log-job">${escapeHtml(job)}</span>` : ''}
+    <span class="log-message">${escapeHtml(data.message)}</span>
+  `;
+
+  logStream.insertBefore(logEntry, logStream.firstChild);
+  while (logStream.children.length > 100) {
+    logStream.removeChild(logStream.lastChild);
+  }
+  logStream.scrollTop = 0;
+}
+
+function clearLogs() {
+  const logStream = document.getElementById('logStream');
+  if (logStream) {
+    logStream.innerHTML = '<div class="empty-state"><p>Logs cleared. New logs will appear here.</p></div>';
+  }
+}
+
+function handleAgentEvent(data) {
+  eventState.unshift(data);
+  if (eventState.length > 100) eventState.length = 100;
+  mergeAgentStateFromEvent(data);
+  renderEventFeed();
+  renderGraph();
+}
+
+socket.on('agent_activity', (data) => {
+  const payload = data.activity || data;
+  prependActivity(payload);
 });
+
+socket.on('agent_log', (data) => {
+  prependLog(data);
+});
+
+socket.on('agent_event', (data) => {
+  handleAgentEvent(data);
+});
+
+socket.on('connect', () => {
+  document.getElementById('agentActivityStatus').textContent = 'Live';
+  document.getElementById('agentActivityStatus').className = 'status-pill status-ok';
+  document.getElementById('logStreamStatus').textContent = 'Streaming';
+  document.getElementById('logStreamStatus').className = 'status-pill status-ok';
+  document.getElementById('agentEventStatus').textContent = 'Streaming';
+  document.getElementById('agentEventStatus').className = 'metric-status status-ok';
+  document.getElementById('graphStatus').textContent = 'Live';
+  document.getElementById('graphStatus').className = 'status-pill status-ok';
+});
+
+socket.on('disconnect', () => {
+  document.getElementById('agentActivityStatus').textContent = 'Disconnected';
+  document.getElementById('agentActivityStatus').className = 'status-pill status-neutral';
+  document.getElementById('logStreamStatus').textContent = 'Disconnected';
+  document.getElementById('logStreamStatus').className = 'status-pill status-neutral';
+  document.getElementById('agentEventStatus').textContent = 'Paused';
+  document.getElementById('agentEventStatus').className = 'metric-status status-neutral';
+  document.getElementById('graphStatus').textContent = 'Paused';
+  document.getElementById('graphStatus').className = 'status-pill status-neutral';
+});
+
+updateEnabledCount();
+renderEventFeed();
+renderGraph();
+for (const agent of agentState.values()) {
+  updateAgentCard(agent);
+}
 </script>
 {% endblock %}

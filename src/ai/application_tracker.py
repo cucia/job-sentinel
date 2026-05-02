@@ -6,8 +6,12 @@ Logs all job applications with detailed tracking of status, failures, and agent 
 
 import json
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
+
+
+_TRACKER_WRITE_LOCK = threading.Lock()
 
 
 class ApplicationTracker:
@@ -53,46 +57,47 @@ class ApplicationTracker:
             metadata: Additional metadata
         """
         try:
-            # Load existing logs
-            with open(self.log_path, 'r') as f:
-                data = json.load(f)
+            with _TRACKER_WRITE_LOCK:
+                # Load existing logs
+                with open(self.log_path, 'r') as f:
+                    data = json.load(f)
 
-            # Extract agent path from task context if not provided
-            if not agent_path and task_context:
-                agent_path = self._extract_agent_path(task_context)
+                # Extract agent path from task context if not provided
+                if not agent_path and task_context:
+                    agent_path = self._extract_agent_path(task_context)
 
-            # Create log entry
-            entry = {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "job_id": job_id,
-                "job_key": job_key,
-                "company": company,
-                "title": title,
-                "platform": platform,
-                "status": status,
-                "failure_reason": failure_reason,
-                "agent_path": agent_path or [],
-                "metadata": metadata or {},
-            }
-
-            # Add task context summary if available
-            if task_context:
-                entry["task_summary"] = {
-                    "retry_count": task_context.get("retry_count", 0),
-                    "errors": task_context.get("errors", []),
-                    "ats_type": task_context.get("metadata", {}).get("ats_type"),
-                    "form_detected": task_context.get("form_detected", False),
-                    "fields_filled": len(task_context.get("filled_fields", [])),
-                    "fields_missing": len(task_context.get("missing_fields", [])),
-                    "submission_successful": task_context.get("submission_successful", False),
+                # Create log entry
+                entry = {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "job_id": job_id,
+                    "job_key": job_key,
+                    "company": company,
+                    "title": title,
+                    "platform": platform,
+                    "status": status,
+                    "failure_reason": failure_reason,
+                    "agent_path": agent_path or [],
+                    "metadata": metadata or {},
                 }
 
-            # Append to logs
-            data["applications"].append(entry)
+                # Add task context summary if available
+                if task_context:
+                    entry["task_summary"] = {
+                        "retry_count": task_context.get("retry_count", 0),
+                        "errors": task_context.get("errors", []),
+                        "ats_type": task_context.get("metadata", {}).get("ats_type"),
+                        "form_detected": task_context.get("form_detected", False),
+                        "fields_filled": len(task_context.get("filled_fields", [])),
+                        "fields_missing": len(task_context.get("missing_fields", [])),
+                        "submission_successful": task_context.get("submission_successful", False),
+                    }
 
-            # Write back
-            with open(self.log_path, 'w') as f:
-                json.dump(data, f, indent=2)
+                # Append to logs
+                data["applications"].append(entry)
+
+                # Write back
+                with open(self.log_path, 'w') as f:
+                    json.dump(data, f, indent=2)
 
         except Exception as exc:
             # Don't fail the application if logging fails

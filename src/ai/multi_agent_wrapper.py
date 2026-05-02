@@ -49,11 +49,6 @@ async def apply_with_agents(
     # Create human behavior controller
     human_behavior = create_human_behavior(settings)
 
-    # Check session limits
-    if not human_behavior.can_apply_more():
-        log(f"[MultiAgent] Session limit reached ({human_behavior.applications_this_session} applications)")
-        return ("skipped", None)
-
     # Get headless setting
     headless = settings.get("app", {}).get("headless", True)
 
@@ -88,26 +83,34 @@ async def apply_with_agents(
             }
         )
 
-        # Log final result
-        log(f"[MultiAgent] Application result: {result.get('status')} for {job.get('title')}")
+        attempted = bool(task_context.attempts)
+        final_status = result.get("status", "unknown")
+        failure_reason = result.get("reason") or result.get("message") or "none"
+        mapped_status = "review"
+        mapped_easy_apply = task_context.easy_apply_available if task_context.easy_apply_available is not None else None
+
+        if result.get("success"):
+            if result.get("needs_review") or final_status == "needs_review":
+                mapped_status = "review"
+            else:
+                mapped_status = "applied"
+        elif final_status == "failed":
+            mapped_status = "failed" if not attempted else "review"
+        elif final_status == "skipped":
+            mapped_status = "skipped" if not attempted else "review"
+        elif final_status == "review":
+            mapped_status = "review"
+
+        log(
+            f"[MultiAgent] Final outcome for {job.get('title')}: "
+            f"raw_status={final_status} mapped_status={mapped_status} attempted={attempted} "
+            f"reason={failure_reason} retries={task_context.retry_count}"
+        )
 
         # Add pause between applications
         await human_behavior.pause_between_applications()
 
-        # Map result to controller format
-        if result.get("success"):
-            if result.get("needs_review"):
-                return ("review", task_context.easy_apply_available)
-            return ("applied", task_context.easy_apply_available)
-        elif result.get("status") == "failed":
-            if result.get("action") == "needs_manual_login":
-                return ("review", None)
-            elif result.get("action") == "needs_manual_captcha":
-                return ("review", None)
-            else:
-                return ("skipped", None)
-        else:
-            return ("skipped", None)
+        return (mapped_status, mapped_easy_apply)
 
     except Exception as exc:
         log(f"[MultiAgent] Application error: {exc}")
