@@ -16,20 +16,6 @@
   </div>
   <div class="chat-shell">
     <div class="chat-profile">
-      <div class="profile-toolbar">
-        <form class="profile-switcher" method="get" action="{{ url_for('profile_page') }}">
-          <label class="field-label" for="profile-picker">Open profile</label>
-          <div class="profile-picker-row">
-            <select class="field-input" id="profile-picker" name="profile">
-              {% for item in profile_names %}
-              <option value="{{ item }}" {{ 'selected' if item == profile_name else '' }}>{{ item }}</option>
-              {% endfor %}
-            </select>
-            <button class="control-toggle compact" type="submit">Load</button>
-          </div>
-        </form>
-      </div>
-
       <form class="profile-form" method="post" action="{{ url_for('save_profile_details') }}">
         <div class="profile-title">Profile details</div>
 
@@ -44,8 +30,7 @@
           <div class="resume-upload-hint">Upload your resume to auto-fill profile fields (PDF, DOCX, or TXT)</div>
         </div>
 
-        <label class="field-label" for="profile_name">Profile file</label>
-        <input class="field-input" id="profile_name" name="profile_name" type="text" value="{{ profile_name }}" placeholder="candidate" />
+        <input type="hidden" name="profile_name" value="{{ profile_name }}" />
 
         <label class="field-label" for="name">Display name</label>
         <input class="field-input" id="name" name="name" type="text" value="{{ profile.name or '' }}" placeholder="Your Name" />
