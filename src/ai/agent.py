@@ -14,7 +14,7 @@ import re
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
-from src.ai.llm import chat
+from src.ai.cloud_llm import create_llm_client
 
 
 class JobAgent:
@@ -23,7 +23,7 @@ class JobAgent:
     def __init__(self, profile: dict, settings: dict):
         self.profile = profile
         self.settings = settings
-        self.llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
+        self.client = create_llm_client(settings)
         self.min_score = settings.get("ai", {}).get("min_score", 70)
         self.conversation_history: List[dict] = []
 
@@ -41,12 +41,11 @@ class JobAgent:
         prompt = self._build_evaluation_prompt(job, context)
 
         try:
-            response = chat(
+            response = self.client.chat(
                 messages=[
                     {"role": "system", "content": self._get_system_prompt()},
                     {"role": "user", "content": prompt}
                 ],
-                model=self.llm_model,
                 temperature=0.2,
             )
 
@@ -247,12 +246,11 @@ ADJUSTMENT: <what to change in future decisions>
 """
 
         try:
-            response = chat(
+            response = self.client.chat(
                 messages=[
                     {"role": "system", "content": self._get_system_prompt()},
                     {"role": "user", "content": prompt}
                 ],
-                model=self.llm_model,
                 temperature=0.3,
             )
 

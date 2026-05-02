@@ -34,8 +34,6 @@ ai:
   use_cloud: true
   provider: groq
   model: llama-3.1-8b-instant
-  use_llm: false
-  llm_model: llama3.2:latest
   agent_controls:
     evaluator:
       enabled: true

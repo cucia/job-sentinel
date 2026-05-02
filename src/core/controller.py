@@ -371,8 +371,6 @@ def _run_queue_cycle(
     resume_path = settings.get("app", {}).get("resume_path", "resumes/resume.pdf")
     apply_all = settings.get("app", {}).get("apply_all", False)
     use_ai = settings.get("app", {}).get("use_ai", False)
-    use_llm = settings.get("ai", {}).get("use_llm", False)
-    llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
     use_policy = settings.get("app", {}).get("use_policy", False)
     enrich_before_ai = settings.get("app", {}).get("enrich_before_ai", True)
     entry_level_only = settings.get("app", {}).get("entry_level_only", True)
@@ -400,7 +398,7 @@ def _run_queue_cycle(
 
     log(
         "Cycle config: "
-        f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
+        f"apply_all={apply_all} use_ai={use_ai} use_policy={use_policy} "
         f"enrich_before_ai={enrich_before_ai} entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
         f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control}"
     )
@@ -460,7 +458,7 @@ def _run_queue_cycle(
             else:
                 min_score = settings.get("ai", {}).get("min_score", 70)
                 uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
-                decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
+                decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state)
 
             # Apply diversity control if enabled
             if use_diversity_control and diversity_controller:
@@ -640,8 +638,6 @@ def _run_direct_latest_cycle(
     resume_path = settings.get("app", {}).get("resume_path", "resumes/resume.pdf")
     apply_all = settings.get("app", {}).get("apply_all", False)
     use_ai = settings.get("app", {}).get("use_ai", False)
-    use_llm = settings.get("ai", {}).get("use_llm", False)
-    llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
     use_policy = settings.get("app", {}).get("use_policy", False)
     enrich_before_ai = settings.get("app", {}).get("enrich_before_ai", True)
     entry_level_only = settings.get("app", {}).get("entry_level_only", True)
@@ -670,7 +666,7 @@ def _run_direct_latest_cycle(
     log(
         "Direct cycle config: "
         f"latest_results_limit={latest_results_limit} history_limit={history_limit} "
-        f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
+        f"apply_all={apply_all} use_ai={use_ai} use_policy={use_policy} "
         f"enrich_before_ai={enrich_before_ai} entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
         f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control}"
     )
@@ -743,7 +739,7 @@ def _run_direct_latest_cycle(
             else:
                 min_score = settings.get("ai", {}).get("min_score", 70)
                 uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
-                decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state, use_llm=use_llm, llm_model=llm_model)
+                decision = evaluate_job(job, profile, min_score, uncertainty_margin, model_state=model_state)
             score = decision["score"]
             priority_score = float(decision.get("priority_score") or score or 0)
 

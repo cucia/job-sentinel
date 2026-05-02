@@ -59,15 +59,13 @@ This release transforms JobSentinel into an intelligent multi-agent system with 
 - Contact information extraction
 
 #### Cloud AI Integration
-- Support for 7 cloud AI providers:
+- Support for configured cloud AI providers:
   - Groq (FREE - 14,400 req/day)
   - OpenRouter (FREE - Gemini Flash)
   - Google Gemini (FREE - 1,500 req/day)
   - Together AI ($25 free credits)
   - OpenAI (paid)
   - Anthropic (paid)
-  - Ollama (local, free)
-- Automatic fallback to local Ollama
 - Easy provider switching via configuration
 
 #### Documentation
@@ -140,7 +138,7 @@ This release transforms JobSentinel into an intelligent multi-agent system with 
 
 #### AI Features
 - Rule-based job scoring
-- Optional LLM evaluation via Ollama
+- Heuristic job evaluation with optional cloud-backed agent scoring
 - Keyword matching
 - Experience level filtering
 
@@ -231,7 +229,7 @@ This release transforms JobSentinel into an intelligent multi-agent system with 
 ### 2.0.0
 - Dashboard default route changed from `/` to `/command-center`
 - Settings structure changed - see upgrade guide
-- Agent system requires cloud AI or Ollama
+- Agent system requires configured cloud AI
 - Some internal APIs refactored for multi-agent support
 
 ---
@@ -246,7 +244,7 @@ This release transforms JobSentinel into an intelligent multi-agent system with 
 ## Acknowledgments
 
 - Playwright team for browser automation
-- Ollama team for local LLM support
+- AI provider teams for cloud model access
 - Flask team for web framework
 - All AI provider teams (Groq, OpenRouter, Google, etc.)
 

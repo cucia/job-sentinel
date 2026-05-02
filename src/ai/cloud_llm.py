@@ -8,7 +8,6 @@ Supports multiple cloud AI providers:
 - OpenRouter (free tier available)
 - Groq (fast & free tier)
 - Together.ai (cheap)
-- Ollama (local fallback)
 """
 
 import os
@@ -50,7 +49,6 @@ class CloudLLMClient:
             "openrouter": "google/gemini-flash-1.5",  # Free
             "groq": "llama-3.1-70b-versatile",  # Free tier
             "together": "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-            "ollama": "llama3.2:latest",
         }
         return self.model or defaults.get(self.provider, "gpt-4-turbo-preview")
 
@@ -68,8 +66,6 @@ class CloudLLMClient:
             return self._chat_groq(messages, temperature)
         elif self.provider == "together":
             return self._chat_together(messages, temperature)
-        elif self.provider == "ollama":
-            return self._chat_ollama(messages, temperature)
         else:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
@@ -150,11 +146,6 @@ class CloudLLMClient:
             raise RuntimeError("google-generativeai package not installed. Run: pip install google-generativeai")
         except Exception as e:
             raise RuntimeError(f"Gemini API error: {e}")
-
-    def _chat_ollama(self, messages: List[Dict[str, str]], temperature: float) -> str:
-        """Ollama local LLM (fallback)."""
-        from src.ai.llm import chat
-        return chat(messages, model=self._get_default_model(), temperature=temperature)
 
     def _chat_openrouter(self, messages: List[Dict[str, str]], temperature: float) -> str:
         """OpenRouter API (uses OpenAI SDK)."""

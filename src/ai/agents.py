@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from src.ai.agent_registry import build_agent_registry, get_agent_definition, is_agent_enabled, runtime_status_map
-from src.ai.llm import chat
+from src.ai.cloud_llm import create_llm_client
 
 
 class BaseAgent:
@@ -22,36 +22,19 @@ class BaseAgent:
     def __init__(self, profile: dict, settings: dict):
         self.profile = profile
         self.settings = settings
-        self.llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
+        self.client = create_llm_client(settings)
         self.agent_name = self.__class__.__name__
 
     def _call_llm(self, system_prompt: str, user_prompt: str, temperature: float = 0.2) -> str:
-        """Call the LLM with error handling."""
+        """Call the configured cloud LLM with error handling."""
         try:
-            # Check if using cloud provider
-            use_cloud = self.settings.get("ai", {}).get("use_cloud", False)
-
-            if use_cloud:
-                from src.ai.cloud_llm import create_llm_client
-                client = create_llm_client(self.settings)
-                return client.chat(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    temperature=temperature,
-                )
-            else:
-                # Use local Ollama
-                from src.ai.llm import chat
-                return chat(
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    model=self.llm_model,
-                    temperature=temperature,
-                )
+            return self.client.chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=temperature,
+            )
         except Exception as exc:
             raise RuntimeError(f"{self.agent_name} LLM call failed: {exc}")
 
@@ -1197,15 +1180,12 @@ class AgentOrchestrator:
         if not self._agent_enabled("evaluator"):
             min_score = self.settings.get("ai", {}).get("min_score", 70)
             uncertainty_margin = self.settings.get("ai", {}).get("uncertainty_margin", 5)
-            llm_model = self.settings.get("ai", {}).get("llm_model", "llama3.2:latest")
             evaluation = heuristic_evaluate_job(
                 job,
                 self.profile,
                 min_score,
                 uncertainty_margin,
                 model_state=None,
-                use_llm=self.settings.get("ai", {}).get("use_llm", False),
-                llm_model=llm_model,
             )
             evaluation["agent"] = "HeuristicEvaluator"
             review_analysis = None

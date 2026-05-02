@@ -224,29 +224,19 @@ Resume text:
         return {}
 
 
-def parse_resume(file_path: str, use_llm: bool = True) -> dict:
-    """
-    Parse resume file and extract structured data.
-
-    Args:
-        file_path: Path to resume file (PDF, DOCX, or TXT)
-        use_llm: Whether to use LLM for enhanced extraction (default: True)
-
-    Returns:
-        Dictionary with extracted profile data
-    """
+def parse_resume(file_path: str) -> dict:
+    """Parse resume file and extract structured data."""
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Resume file not found: {file_path}")
 
     text = _extract_text(file_path)
 
-    if use_llm:
-        llm_data = _parse_with_llm(text)
-        if llm_data:
-            regex_data = _parse_with_regex(text)
-            for key, value in regex_data.items():
-                if key not in llm_data or not llm_data[key]:
-                    llm_data[key] = value
-            return llm_data
+    llm_data = _parse_with_llm(text)
+    if llm_data:
+        regex_data = _parse_with_regex(text)
+        for key, value in regex_data.items():
+            if key not in llm_data or not llm_data[key]:
+                llm_data[key] = value
+        return llm_data
 
     return _parse_with_regex(text)

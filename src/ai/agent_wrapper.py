@@ -27,16 +27,12 @@ def evaluate_job_with_agent(
         Decision dict compatible with existing code
     """
     use_agent = settings.get("ai", {}).get("use_agent", False)
-    use_llm = settings.get("ai", {}).get("use_llm", False)
 
-    if not use_agent or not use_llm:
-        # Fall back to heuristic scoring
+    if not use_agent:
         min_score = settings.get("ai", {}).get("min_score", 70)
         uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
-        llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
         return heuristic_evaluate_job(
-            job, profile, min_score, uncertainty_margin,
-            model_state=None, use_llm=use_llm, llm_model=llm_model
+            job, profile, min_score, uncertainty_margin, model_state=None
         )
 
     # Use the AI agent

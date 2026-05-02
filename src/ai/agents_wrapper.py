@@ -23,17 +23,13 @@ def evaluate_job_with_agents(
         Decision dict compatible with existing controller code
     """
     use_agents = settings.get("ai", {}).get("use_agents", False)
-    use_llm = settings.get("ai", {}).get("use_llm", False)
     use_cloud = settings.get("ai", {}).get("use_cloud", False)
 
-    if not use_agents or (not use_llm and not use_cloud):
-        # Fall back to heuristic scoring
+    if not use_agents or not use_cloud:
         min_score = settings.get("ai", {}).get("min_score", 70)
         uncertainty_margin = settings.get("ai", {}).get("uncertainty_margin", 5)
-        llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
         return heuristic_evaluate_job(
-            job, profile, min_score, uncertainty_margin,
-            model_state=None, use_llm=use_llm, llm_model=llm_model
+            job, profile, min_score, uncertainty_margin, model_state=None
         )
 
     # Use the multi-agent system
