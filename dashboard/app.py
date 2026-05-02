@@ -698,6 +698,9 @@ def sessions_page():
 def profile_page():
     base_dir, settings, db_path = _load_settings_and_db()
     context = _dashboard_context(base_dir, settings, db_path)
+    profile_name = default_profile_name(base_dir)
+    context["profile_name"] = profile_name
+    context["profile"] = load_profile(base_dir, profile_name)
     return render_template("profile.html", current_page="profile", show_export=False, **context)
 
 
@@ -1013,13 +1016,10 @@ def attempt_apply():
 @app.post("/agent/chat")
 def agent_chat():
     message = (request.form.get("message") or "").strip()
-    profile_name = _profile_key(
-        request.form.get("profile_name"),
-        fallback=default_profile_name(_base_dir()),
-    )
+    base_dir = _base_dir()
+    profile_name = default_profile_name(base_dir)
     if not message:
         return _redirect_page("profile_page", profile_name)
-    base_dir = _base_dir()
     handle_chat(message, profile_name)
     return _redirect_page("profile_page", profile_name, "Assistant context updated.", "ok")
 
@@ -1027,10 +1027,7 @@ def agent_chat():
 @app.post("/profile/save")
 def save_profile_details():
     base_dir, _settings, _db_path = _load_settings_and_db()
-    profile_name = _profile_key(
-        request.form.get("profile_name"),
-        fallback=default_profile_name(base_dir),
-    )
+    profile_name = default_profile_name(base_dir)
     profile = load_profile(base_dir, profile_name)
     profile.update(
         {
@@ -1067,10 +1064,7 @@ def save_profile_details():
 def upload_resume():
     """Handle resume upload and parse data into profile."""
     base_dir, _settings, _db_path = _load_settings_and_db()
-    profile_name = _profile_key(
-        request.form.get("profile_name"),
-        fallback=default_profile_name(base_dir),
-    )
+    profile_name = default_profile_name(base_dir)
 
     if 'resume' not in request.files:
         return _redirect_page("profile_page", profile_name, "No resume file uploaded.", "warn")
