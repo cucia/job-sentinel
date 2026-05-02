@@ -76,10 +76,10 @@
         <div>Mode: <strong>{{ pipeline_mode }}</strong></div>
         <div>Latest batch: <strong>{{ latest_results_limit }} jobs</strong></div>
         <div>History window: <strong>{{ history_limit }} jobs</strong></div>
-        <div>Easy apply first: <strong>{{ 'on' if easy_apply_first else 'off' }}</strong></div>
+        <div>Easy Apply parallel lane: <strong>always on with auto-apply</strong></div>
         <div>LinkedIn easy-apply-only search: <strong>{{ 'on' if linkedin_easy_apply_only else 'off' }}</strong></div>
       </div>
-      <div class="control-text">Direct mode screens the newest search results and applies in the same cycle instead of filling a long queue first.</div>
+      <div class="control-text">Direct mode screens the newest search results and applies in the same cycle instead of filling a long queue first. Easy Apply jobs run in their own parallel lane while standard jobs continue through the normal workflow.</div>
     </div>
 
     <div class="control-group">

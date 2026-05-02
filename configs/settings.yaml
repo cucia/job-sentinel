@@ -9,79 +9,72 @@ app:
   use_policy: false
   easy_apply_first: true
   entry_level_only: false
-  browser: firefox  # Options: firefox (recommended), chromium, webkit
+  browser: firefox
   seniority_blocklist:
-    - senior
-    - lead
-    - manager
-    - principal
-    - director
-    - head
-    - staff
-    - architect
-
+  - senior
+  - lead
+  - manager
+  - principal
+  - director
+  - head
+  - staff
+  - architect
 storage:
   db_path: data/jobsentinel.db
   history_limit: 400
-
-limits:
-  daily_applications: 10
-
 policy:
   allowed_roles: []
   required_skills: []
   blocked_keywords: []
-
 ai:
   min_score: 50
   uncertainty_margin: 5
-
-  # Multi-agent system
-  use_agents: true  # Set to true to enable multi-agent system
-  use_multi_agent: true  # Enable coordinated multi-agent application system
-
-  # Cloud AI Configuration (recommended)
-  use_cloud: true  # Set to true to use cloud AI providers
-  provider: groq  # Options: openai, anthropic, gemini, groq, openrouter, together, ollama
-  model: llama-3.1-8b-instant  # See FREE_AI_SETUP.md for free options
-  # api_key: sk-...  # Optional: set API key in environment (OPENAI_API_KEY, GROQ_API_KEY, etc.)
-
-  # FREE OPTIONS:
-  # provider: groq, model: llama-3.1-70b-versatile (14,400 req/day FREE)
-  # provider: openrouter, model: google/gemini-flash-1.5 (FREE)
-  # provider: gemini, model: gemini-1.5-flash (1,500 req/day FREE)
-  # provider: together, model: meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo ($25 credits)
-
-  # Local LLM (Ollama) - fallback if use_cloud: false
+  use_agents: true
+  use_multi_agent: true
+  use_cloud: true
+  provider: groq
+  model: llama-3.1-8b-instant
   use_llm: false
   llm_model: llama3.2:latest
-
+  agent_controls:
+    evaluator:
+      enabled: true
+    application:
+      enabled: true
+    review:
+      enabled: true
+      updated_at: '2026-05-02T08:24:26.136286+00:00'
+    strategy:
+      enabled: true
+      updated_at: '2026-05-02T08:56:02.768290+00:00'
+    navigator:
+      enabled: true
+    form_detector:
+      enabled: true
+    form_filler:
+      enabled: true
+    recovery:
+      enabled: true
 platforms:
-  enabled:
-    - linkedin
-    - indeed
-    - naukri
+  enabled: []
   sessions:
     linkedin: sessions/linkedin.json
     indeed: sessions/indeed.json
     naukri: sessions/naukri.json
   linkedin:
     search:
-      keywords:
-        - security
+      keywords: []
       location: India
       max_results: 100
       tpr_seconds: 0
       easy_apply_only: false
   indeed:
     search:
-      keywords:
-        - software engineer
+      keywords: []
       location: India
       max_results: 100
   naukri:
     search:
-      keywords:
-        - software engineer
+      keywords: []
       location: India
       max_results: 100

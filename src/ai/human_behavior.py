@@ -1,7 +1,7 @@
 """
 Human-like Behavior Module
 
-Adds natural delays, typing simulation, and rate limiting to browser automation
+Adds natural delays and typing simulation to browser automation
 to make the bot behavior appear more human-like.
 """
 
@@ -16,7 +16,6 @@ class HumanBehavior:
     def __init__(self, settings: dict):
         self.settings = settings
         self.applications_this_session = 0
-        self.max_applications_per_session = settings.get("app", {}).get("max_applications_per_session", 20)
         self.min_delay_between_actions = settings.get("app", {}).get("min_delay_ms", 500) / 1000
         self.max_delay_between_actions = settings.get("app", {}).get("max_delay_ms", 2000) / 1000
 
@@ -119,15 +118,6 @@ class HumanBehavior:
 
         await self.random_delay(300, 700)
 
-    def can_apply_more(self) -> bool:
-        """
-        Check if we can apply to more jobs in this session.
-
-        Returns:
-            True if under session limit
-        """
-        return self.applications_this_session < self.max_applications_per_session
-
     def increment_application_count(self):
         """Increment the application counter for this session."""
         self.applications_this_session += 1
@@ -141,8 +131,6 @@ class HumanBehavior:
         """
         return {
             "applications_this_session": self.applications_this_session,
-            "max_applications_per_session": self.max_applications_per_session,
-            "remaining": self.max_applications_per_session - self.applications_this_session,
         }
 
     async def pause_between_applications(self):

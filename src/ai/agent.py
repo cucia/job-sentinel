@@ -109,8 +109,6 @@ Posted: {job.get('posted_text', job.get('posted_at', 'N/A'))}
         if context:
             if context.get('recent_applications'):
                 context_info += f"\nRecent applications today: {context['recent_applications']}"
-            if context.get('daily_limit'):
-                context_info += f"\nDaily application limit: {context['daily_limit']}"
             if context.get('feedback_summary'):
                 context_info += f"\nRecent feedback: {context['feedback_summary']}"
 

@@ -9,11 +9,12 @@ import docker
 from flask import Flask, request, redirect, url_for, render_template, Response
 from flask_socketio import SocketIO
 
+from src.ai.agent_registry import build_agent_registry, ensure_agent_controls, set_agent_enabled
 from src.ai.profile_store import save_profile
 from src.ai.scorer import update_model
 from src.ai.chat import handle_chat, _load_recent_log
 from src.core.config import default_profile_name, load_profile, load_settings, save_settings
-from src.core.logger import log
+from src.core.logger import get_recent_agent_events, log
 from src.core.platform_registry import get_platforms
 from src.services.session_manager import (
     cancel_session_login,
@@ -310,15 +311,13 @@ def _get_agent_activity(db_path: str) -> list:
         for row in rows:
             title, company, decision, score, created_at = row
 
-            # Parse timestamp
             try:
                 from datetime import datetime
                 dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
                 timestamp = dt.strftime('%H:%M:%S')
-            except:
+            except Exception:
                 timestamp = created_at[:8] if created_at else 'N/A'
 
-            # Determine agent and action
             agent = "JobEvaluatorAgent"
             action = f"Evaluated '{title[:30]}...' at {company or 'Unknown'}"
             result = decision or "REVIEW"
@@ -331,6 +330,28 @@ def _get_agent_activity(db_path: str) -> list:
             })
 
     return activity
+
+
+def _get_agent_registry(settings: dict) -> list:
+    ensure_agent_controls(settings)
+    events = get_recent_agent_events(limit=100)
+    runtime = {}
+
+    for event in events:
+        agent_id = event.get("metadata", {}).get("agent_id") or event.get("agent")
+        if not agent_id:
+            continue
+        state = runtime.setdefault(agent_id, {})
+        state["status"] = event.get("status") or state.get("status") or "idle"
+        state["last_seen"] = event.get("timestamp")
+        state["last_event"] = event.get("event_type")
+        state["reason"] = event.get("reason")
+
+    return build_agent_registry(settings, runtime)
+
+
+def _get_agent_events(limit: int = 60) -> list:
+    return list(reversed(get_recent_agent_events(limit=limit)))
 
 
 def _get_analytics_data(db_path: str) -> dict:
@@ -446,7 +467,6 @@ def _dashboard_context(base_dir: str, settings: dict, db_path: str) -> dict:
     run_interval = int(settings.get("app", {}).get("run_interval_seconds", 300))
     pipeline_mode = _pipeline_mode(settings)
     latest_results_limit = int(settings.get("app", {}).get("latest_results_limit", 100))
-    easy_apply_first = bool(settings.get("app", {}).get("easy_apply_first", True))
     history_limit = int(settings.get("storage", {}).get("history_limit", 400))
     linkedin_easy_apply_only = bool(
         settings.get("platforms", {}).get("linkedin", {}).get("search", {}).get("easy_apply_only", False)
@@ -487,7 +507,6 @@ def _dashboard_context(base_dir: str, settings: dict, db_path: str) -> dict:
         "run_interval": run_interval,
         "pipeline_mode": pipeline_mode,
         "latest_results_limit": latest_results_limit,
-        "easy_apply_first": easy_apply_first,
         "history_limit": history_limit,
         "linkedin_easy_apply_only": linkedin_easy_apply_only,
         "stats": stats,
@@ -534,18 +553,28 @@ def _apply_feedback_learning(base_dir: str, db_path: str, job_key: str, label: s
     )
 
 
-def _run_dashboard_apply(base_dir: str, settings: dict, db_path: str, job: dict) -> tuple[str, str]:
+def _run_dashboard_apply(base_dir: str, settings: dict, db_path: str, job: dict) -> tuple[str, str, str]:
     apply_fn = get_platforms().get(job.get("platform"))
     if not apply_fn:
-        return "warn", "No apply module is registered for this platform."
+        return "warn", "skipped", "No apply module is registered for this platform."
 
     resume_path = _resolve_resume_path(base_dir, settings)
+    use_multi_agent = settings.get("ai", {}).get("use_multi_agent", False)
+    log(
+        "Dashboard apply start: "
+        f"platform={job.get('platform')} title={job.get('title')} job_key={job.get('job_key')} "
+        f"mode={'multi_agent' if use_multi_agent else 'platform_apply'}"
+    )
     try:
-        result = apply_fn(job, resume_path, settings)
+        if use_multi_agent:
+            from src.ai.multi_agent_wrapper import apply_with_agents_sync
+            result = apply_with_agents_sync(job, load_profile(base_dir), settings, job.get("platform"))
+        else:
+            result = apply_fn(job, resume_path, settings)
     except Exception as exc:
         log(f"Dashboard apply failed for {job.get('job_key')}: {exc}")
-        update_job(db_path, job["job_key"], status="review", easy_apply=0)
-        return "warn", f"Apply attempt failed: {exc}"
+        update_job(db_path, job["job_key"], status="failed", easy_apply=0)
+        return "warn", "failed", f"Apply attempt failed: {exc}"
 
     result_status = None
     easy_apply = None
@@ -554,16 +583,39 @@ def _run_dashboard_apply(base_dir: str, settings: dict, db_path: str, job: dict)
 
     if result_status == "applied":
         update_job(db_path, job["job_key"], status="applied", easy_apply=easy_apply)
-        return "ok", "Application submitted successfully."
+        log(
+            f"Dashboard apply result: status=applied easy_apply={easy_apply} "
+            f"job_key={job.get('job_key')} reason=verified_success"
+        )
+        return "ok", "applied", "Application submitted successfully."
     if result_status == "review":
         update_job(db_path, job["job_key"], status="review", easy_apply=easy_apply)
-        return "warn", "Apply flow needs review. Open the job and finish any missing answers manually."
+        log(
+            f"Dashboard apply result: status=review easy_apply={easy_apply} "
+            f"job_key={job.get('job_key')} reason=attempted_unresolved"
+        )
+        return "warn", "review", "Apply flow needs review. Open the job and finish any missing answers manually."
+    if result_status == "failed":
+        update_job(db_path, job["job_key"], status="failed", easy_apply=easy_apply)
+        log(
+            f"Dashboard apply result: status=failed easy_apply={easy_apply} "
+            f"job_key={job.get('job_key')} reason=runtime_failure"
+        )
+        return "warn", "failed", "Apply flow failed due to a runtime error. Check logs for the full trace."
     if result_status == "skipped":
         update_job(db_path, job["job_key"], status="skipped", easy_apply=easy_apply)
-        return "warn", "Job was skipped by the apply module."
+        log(
+            f"Dashboard apply result: status=skipped easy_apply={easy_apply} "
+            f"job_key={job.get('job_key')} reason=no_attempt_made"
+        )
+        return "warn", "skipped", "Job was skipped before any application attempt was made."
 
-    update_job(db_path, job["job_key"], status="deferred", easy_apply=easy_apply)
-    return "warn", "Apply attempt was deferred."
+    update_job(db_path, job["job_key"], status="review", easy_apply=easy_apply)
+    log(
+        f"Dashboard apply result: status=review easy_apply={easy_apply} "
+        f"job_key={job.get('job_key')} reason=unknown_outcome_defaulted_to_review raw_status={result_status}"
+    )
+    return "warn", "review", "Apply flow ended in an unresolved state and needs review."
 
 
 
@@ -585,13 +637,9 @@ def command_center():
     # Get recent agent activity (mock for now, will be populated by real agent logs)
     agent_activity = _get_agent_activity(db_path)
 
-    # Get daily limit
-    limits_daily = settings.get('limits', {}).get('daily_applications', 10)
-
     context.update({
         'jobs': jobs,
         'agent_activity': agent_activity,
-        'limits_daily': limits_daily
     })
 
     return render_template("command_center.html", current_page="command", show_export=False, **context)
@@ -631,6 +679,8 @@ def agents():
     use_cloud = settings.get('ai', {}).get('use_cloud', False)
     provider = settings.get('ai', {}).get('provider', 'groq')
     model = settings.get('ai', {}).get('model', 'llama-3.1-8b-instant')
+    agent_registry = _get_agent_registry(settings)
+    agent_events = _get_agent_events()
 
     context.update({
         'agent_activity': agent_activity,
@@ -641,6 +691,9 @@ def agents():
         'use_cloud': use_cloud,
         'provider': provider,
         'model': model,
+        'agent_registry': agent_registry,
+        'agent_events': agent_events,
+        'enabled_agent_count': sum(1 for agent in agent_registry if agent.get('enabled')),
     })
 
     return render_template("agents.html", current_page="agents", show_export=False, **context)
@@ -665,17 +718,38 @@ def bulk_approve():
     base_dir, settings, db_path = _load_settings_and_db()
     data = request.get_json()
     job_keys = data.get('job_keys', [])
+    results = []
 
     for job_key in job_keys:
         _apply_feedback_learning(base_dir, db_path, job_key, "approved", "bulk")
         if _pipeline_mode(settings) == "direct_latest":
             job = get_job(db_path, job_key)
             if job:
-                _run_dashboard_apply(base_dir, settings, db_path, job)
+                level, result_status, message = _run_dashboard_apply(base_dir, settings, db_path, job)
+                results.append({
+                    "job_key": job_key,
+                    "level": level,
+                    "result": result_status,
+                    "message": message,
+                })
+            else:
+                results.append({
+                    "job_key": job_key,
+                    "level": "warn",
+                    "result": "review",
+                    "message": "Job was not found for apply retry.",
+                })
         else:
             update_job(db_path, job_key, status="queued")
+            results.append({
+                "job_key": job_key,
+                "level": "ok",
+                "result": "queued",
+                "message": "Job approved and queued for the next apply cycle.",
+            })
 
-    return {"status": "success", "count": len(job_keys)}
+    overall_status = "success" if all(item["level"] == "ok" for item in results) else "warning"
+    return {"status": overall_status, "count": len(job_keys), "results": results}
 
 
 @app.post("/bulk-reject")
@@ -697,16 +771,19 @@ def quick_approve():
     data = request.get_json()
     job_key = data.get('job_key')
 
-    if job_key:
-        _apply_feedback_learning(base_dir, db_path, job_key, "approved", "quick")
-        if _pipeline_mode(settings) == "direct_latest":
-            job = get_job(db_path, job_key)
-            if job:
-                _run_dashboard_apply(base_dir, settings, db_path, job)
-        else:
-            update_job(db_path, job_key, status="queued")
+    if not job_key:
+        return {"status": "warning", "level": "warn", "result": "review", "message": "Missing job key."}, 400
 
-    return {"status": "success"}
+    _apply_feedback_learning(base_dir, db_path, job_key, "approved", "quick")
+    if _pipeline_mode(settings) == "direct_latest":
+        job = get_job(db_path, job_key)
+        if not job:
+            return {"status": "warning", "level": "warn", "result": "review", "message": "Job was not found for apply retry."}, 404
+        level, result_status, message = _run_dashboard_apply(base_dir, settings, db_path, job)
+        return {"status": "success" if level == "ok" else "warning", "level": level, "result": result_status, "message": message}
+
+    update_job(db_path, job_key, status="queued")
+    return {"status": "success", "level": "ok", "result": "queued", "message": "Job approved and queued for the next apply cycle."}
 
 
 @app.post("/quick-reject")
@@ -722,13 +799,25 @@ def quick_reject():
     return {"status": "success"}
 
 
-@app.post("/toggle/easy-apply")
-def toggle_easy_apply():
-    base_dir, settings, db_path = _load_settings_and_db()
-    app_cfg = settings.setdefault("app", {})
-    app_cfg["easy_apply_first"] = not bool(app_cfg.get("easy_apply_first", True))
+@app.post("/toggle/agent/<agent_id>")
+def toggle_agent(agent_id: str):
+    base_dir, settings, _db_path = _load_settings_and_db()
+    agent_registry = {agent["id"]: agent for agent in _get_agent_registry(settings)}
+    if agent_id not in agent_registry:
+        return {"status": "error", "message": "Unknown agent"}, 404
+
+    enabled = not bool(agent_registry[agent_id].get("enabled", True))
+    state = set_agent_enabled(settings, agent_id, enabled)
     save_settings(base_dir, settings)
-    return {"status": "success"}
+
+    updated_registry = _get_agent_registry(settings)
+    return {
+        "status": "success",
+        "agent": agent_id,
+        "enabled": state.get("enabled", True),
+        "agent_registry": updated_registry,
+        "enabled_agent_count": sum(1 for agent in updated_registry if agent.get("enabled")),
+    }
 
 
 @app.route("/applied")
@@ -1188,6 +1277,10 @@ def main() -> None:
     base_dir = _base_dir()
     settings = load_settings(base_dir)
     db_path = _resolve_db_path(base_dir, settings)
+
+    # Initialize logger with socketio for real-time broadcasting
+    from src.core.logger import set_socketio
+    set_socketio(socketio)
 
     from dashboard.websocket_handler import start_background_updates
     start_background_updates(socketio, db_path, interval=10)

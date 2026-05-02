@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import hashlib
 import os
 import re
@@ -14,7 +15,6 @@ from src.ai.feedback_learner import get_feedback_learner
 from src.ai.visibility_predictor import predict_visibility
 from src.ai.diversity_controller import get_diversity_controller
 from src.core.config import load_profile, load_settings
-from src.core.limiter import can_apply
 from src.core.logger import log
 from src.core.platform_registry import get_enrichers, get_platforms
 from src.core.policy import policy_allows
@@ -153,16 +153,174 @@ def _merge_existing_job(job: dict, existing_job: dict | None) -> dict:
     return merged
 
 
-def _rank_apply_candidates(candidates: list[dict], easy_apply_first: bool) -> list[dict]:
-    def _candidate_key(candidate: dict) -> tuple[int, float, int, float, int]:
+def _rank_apply_candidates(candidates: list[dict]) -> list[dict]:
+    def _candidate_key(candidate: dict) -> tuple[float, int, float, int]:
         job = candidate["job"]
         index = int(candidate.get("index", 0) or 0)
         recency_key = _job_sort_key((index, job))
-        easy_apply_rank = 1 if easy_apply_first and int(job.get("easy_apply") or 0) == 1 else 0
         priority_score = float(candidate.get("priority_score") or candidate.get("score") or 0)
-        return (easy_apply_rank, priority_score, recency_key[0], recency_key[1], recency_key[2])
+        return (priority_score, recency_key[0], recency_key[1], recency_key[2])
 
     return sorted(candidates, key=_candidate_key, reverse=True)
+
+
+async def _apply_direct_candidate(
+    candidate: dict,
+    lane_name: str,
+    *,
+    profile: dict,
+    settings: dict,
+    resume_path: str,
+    platforms: dict,
+    db_path: str,
+) -> str:
+    job = candidate["job"]
+    score = candidate.get("score")
+    priority_score = candidate.get("priority_score")
+    platform = job.get("platform")
+    apply_fn = platforms.get(platform)
+
+    if not apply_fn:
+        upsert_job(db_path, job, status="skipped", score=score, decision="no_apply_module")
+        log(f"[{lane_name}] No apply module for {job.get('title')} on {platform}")
+        return "skipped"
+
+    update_job(
+        db_path,
+        job["job_key"],
+        status="applying",
+        easy_apply=job.get("easy_apply"),
+        score=score,
+    )
+    log(
+        f"[{lane_name}] Applying: platform={platform} title={job.get('title')} "
+        f"url={job.get('job_url')} score={score} priority={priority_score} "
+        f"easy_apply={job.get('easy_apply', 0)} signals={candidate.get('signals', [])}"
+    )
+
+    try:
+        use_multi_agent = settings.get("ai", {}).get("use_multi_agent", False)
+
+        if use_multi_agent:
+            from src.ai.multi_agent_wrapper import apply_with_agents
+            log(f"[{lane_name}] Using multi-agent application for {job.get('title')}")
+            result = await apply_with_agents(job, profile, settings, platform)
+        else:
+            result = await asyncio.to_thread(apply_fn, job, resume_path, settings)
+
+        result_status = None
+        easy_apply = job.get("easy_apply")
+        if isinstance(result, tuple):
+            result_status, easy_apply = result
+
+        if result_status == "applied":
+            upsert_job(db_path, job, status="applied", easy_apply=easy_apply, score=score, decision="applied_direct")
+            log(f"[{lane_name}] Direct apply result: status=applied easy_apply={easy_apply}")
+            return "applied"
+        if result_status == "review":
+            upsert_job(db_path, job, status="review", easy_apply=easy_apply, score=score, decision="apply_review")
+            log(f"[{lane_name}] Direct apply result: status=review easy_apply={easy_apply}")
+            return "review"
+        if result_status == "skipped":
+            upsert_job(db_path, job, status="skipped", easy_apply=easy_apply, score=score, decision="apply_skipped")
+            log(f"[{lane_name}] Direct apply result: status=skipped easy_apply={easy_apply}")
+            return "skipped"
+
+        upsert_job(db_path, job, status="deferred", easy_apply=easy_apply, score=score, decision="apply_deferred")
+        log(f"[{lane_name}] Direct apply result: status=deferred easy_apply={easy_apply}")
+        return "deferred"
+    except Exception as exc:
+        log(f"[{lane_name}] Direct apply failed for {job.get('job_key')}: {exc}")
+        upsert_job(
+            db_path,
+            job,
+            status="review",
+            easy_apply=job.get("easy_apply"),
+            score=score,
+            decision="apply_failed",
+        )
+        return "review"
+
+
+async def _run_direct_apply_lane(
+    lane_name: str,
+    candidates: list[dict],
+    *,
+    profile: dict,
+    settings: dict,
+    resume_path: str,
+    platforms: dict,
+    db_path: str,
+) -> dict[str, int]:
+    counts = {"applied": 0, "review": 0, "skipped": 0, "deferred": 0}
+    if not candidates:
+        log(f"[{lane_name}] No candidates queued")
+        return counts
+
+    log(f"[{lane_name}] Starting lane with {len(candidates)} candidates")
+    for candidate in candidates:
+        status = await _apply_direct_candidate(
+            candidate,
+            lane_name,
+            profile=profile,
+            settings=settings,
+            resume_path=resume_path,
+            platforms=platforms,
+            db_path=db_path,
+        )
+        counts[status] += 1
+
+    log(
+        f"[{lane_name}] Lane finished: applied={counts['applied']} review={counts['review']} "
+        f"skipped={counts['skipped']} deferred={counts['deferred']}"
+    )
+    return counts
+
+
+async def _run_direct_apply_lanes(
+    easy_apply_candidates: list[dict],
+    standard_candidates: list[dict],
+    *,
+    profile: dict,
+    settings: dict,
+    resume_path: str,
+    platforms: dict,
+    db_path: str,
+) -> dict[str, int]:
+    totals = {"applied": 0, "review": 0, "skipped": 0, "deferred": 0}
+    lane_tasks = []
+
+    if easy_apply_candidates:
+        lane_tasks.append(
+            _run_direct_apply_lane(
+                "easy_apply_lane",
+                easy_apply_candidates,
+                profile=profile,
+                settings=settings,
+                resume_path=resume_path,
+                platforms=platforms,
+                db_path=db_path,
+            )
+        )
+    if standard_candidates:
+        lane_tasks.append(
+            _run_direct_apply_lane(
+                "standard_lane",
+                standard_candidates,
+                profile=profile,
+                settings=settings,
+                resume_path=resume_path,
+                platforms=platforms,
+                db_path=db_path,
+            )
+        )
+    if not lane_tasks:
+        return totals
+
+    for lane_counts in await asyncio.gather(*lane_tasks):
+        for key, value in lane_counts.items():
+            totals[key] += value
+    return totals
 
 
 def collect_jobs(settings: dict, profile: dict, enabled_override: list[str] | None = None) -> list:
@@ -209,7 +367,6 @@ def _run_queue_cycle(
 ) -> None:
     jobs = collect_jobs(settings, profile, enabled_override)
     log(f"Collected {len(jobs)} jobs")
-    daily_limit = settings.get("limits", {}).get("daily_applications", 10)
     policy = settings.get("policy", {})
     resume_path = settings.get("app", {}).get("resume_path", "resumes/resume.pdf")
     apply_all = settings.get("app", {}).get("apply_all", False)
@@ -245,8 +402,7 @@ def _run_queue_cycle(
         "Cycle config: "
         f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
         f"enrich_before_ai={enrich_before_ai} entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
-        f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control} "
-        f"daily_limit={daily_limit}"
+        f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control}"
     )
 
     # Phase 1: collect + enqueue
@@ -408,7 +564,7 @@ def _run_queue_cycle(
     review_apply_count = 0
     skipped_apply_count = 0
     deferred_apply_count = 0
-    while apply_all or can_apply(db_path, daily_limit):
+    while True:
         job = next_queued_job(db_path)
         if not job:
             break
@@ -480,7 +636,6 @@ def _run_direct_latest_cycle(
     history_limit = int(settings.get("storage", {}).get("history_limit", 400))
     jobs = _select_latest_jobs(collected_jobs, latest_results_limit)
 
-    daily_limit = settings.get("limits", {}).get("daily_applications", 10)
     policy = settings.get("policy", {})
     resume_path = settings.get("app", {}).get("resume_path", "resumes/resume.pdf")
     apply_all = settings.get("app", {}).get("apply_all", False)
@@ -489,7 +644,6 @@ def _run_direct_latest_cycle(
     llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
     use_policy = settings.get("app", {}).get("use_policy", False)
     enrich_before_ai = settings.get("app", {}).get("enrich_before_ai", True)
-    easy_apply_first = settings.get("app", {}).get("easy_apply_first", True)
     entry_level_only = settings.get("app", {}).get("entry_level_only", True)
     use_quality_filter = settings.get("ai", {}).get("use_quality_filter", False)
     use_visibility_filter = settings.get("ai", {}).get("use_visibility_filter", False)
@@ -517,10 +671,8 @@ def _run_direct_latest_cycle(
         "Direct cycle config: "
         f"latest_results_limit={latest_results_limit} history_limit={history_limit} "
         f"apply_all={apply_all} use_ai={use_ai} use_llm={use_llm} llm_model={llm_model} use_policy={use_policy} "
-        f"enrich_before_ai={enrich_before_ai} easy_apply_first={easy_apply_first} "
-        f"entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
-        f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control} "
-        f"daily_limit={daily_limit}"
+        f"enrich_before_ai={enrich_before_ai} entry_level_only={entry_level_only} use_quality_filter={use_quality_filter} "
+        f"use_visibility_filter={use_visibility_filter} use_diversity_control={use_diversity_control}"
     )
     log(
         "Direct cycle batch: "
@@ -715,7 +867,7 @@ def _run_direct_latest_cycle(
         counts["ranked"] += 1
         counts["easy_apply_candidates"] += int(job.get("easy_apply") or 0)
 
-    ranked_candidates = _rank_apply_candidates(apply_candidates, bool(easy_apply_first))
+    ranked_candidates = _rank_apply_candidates(apply_candidates)
     if ranked_candidates:
         preview = ", ".join(
             (
@@ -727,72 +879,30 @@ def _run_direct_latest_cycle(
         )
         log(f"Direct ranking top candidates: {preview}")
 
-    for candidate in ranked_candidates:
-        job = candidate["job"]
-        score = candidate.get("score")
-        priority_score = candidate.get("priority_score")
-        platform = job.get("platform")
+    easy_apply_candidates = [
+        candidate for candidate in ranked_candidates if int(candidate["job"].get("easy_apply") or 0) == 1
+    ]
+    standard_candidates = [
+        candidate for candidate in ranked_candidates if int(candidate["job"].get("easy_apply") or 0) != 1
+    ]
+    log(
+        "Direct apply lanes: "
+        f"easy_apply_lane={len(easy_apply_candidates)} standard_lane={len(standard_candidates)}"
+    )
 
-        if not can_apply(db_path, daily_limit):
-            upsert_job(db_path, job, status="deferred", score=score, decision="daily_limit_deferred")
-            counts["deferred"] += 1
-            continue
-
-        apply_fn = platforms.get(platform)
-        if not apply_fn:
-            upsert_job(db_path, job, status="skipped", score=score, decision="no_apply_module")
-            counts["skipped"] += 1
-            continue
-
-        log(
-            "Direct applying: "
-            f"platform={platform} title={job.get('title')} url={job.get('job_url')} "
-            f"score={score} priority={priority_score} easy_apply={job.get('easy_apply', 0)} "
-            f"signals={candidate.get('signals', [])}"
+    lane_counts = asyncio.run(
+        _run_direct_apply_lanes(
+            easy_apply_candidates,
+            standard_candidates,
+            profile=profile,
+            settings=settings,
+            resume_path=resume_path,
+            platforms=platforms,
+            db_path=db_path,
         )
-        try:
-            # Check if multi-agent mode is enabled
-            use_multi_agent = settings.get("ai", {}).get("use_multi_agent", False)
-
-            if use_multi_agent:
-                from src.ai.multi_agent_wrapper import apply_with_agents_sync
-                log(f"[Controller] Using multi-agent application for {job.get('title')}")
-                result = apply_with_agents_sync(job, profile, settings, platform)
-            else:
-                result = apply_fn(job, resume_path, settings)
-
-            result_status = None
-            easy_apply = job.get("easy_apply")
-            if isinstance(result, tuple):
-                result_status, easy_apply = result
-
-            if result_status == "applied":
-                upsert_job(db_path, job, status="applied", easy_apply=easy_apply, score=score, decision="applied_direct")
-                counts["applied"] += 1
-                log(f"Direct apply result: status=applied easy_apply={easy_apply}")
-            elif result_status == "review":
-                upsert_job(db_path, job, status="review", easy_apply=easy_apply, score=score, decision="apply_review")
-                counts["review"] += 1
-                log(f"Direct apply result: status=review easy_apply={easy_apply}")
-            elif result_status == "skipped":
-                upsert_job(db_path, job, status="skipped", easy_apply=easy_apply, score=score, decision="apply_skipped")
-                counts["skipped"] += 1
-                log(f"Direct apply result: status=skipped easy_apply={easy_apply}")
-            else:
-                upsert_job(db_path, job, status="deferred", easy_apply=easy_apply, score=score, decision="apply_deferred")
-                counts["deferred"] += 1
-                log(f"Direct apply result: status=deferred easy_apply={easy_apply}")
-        except Exception as exc:
-            log(f"Direct apply failed for {job.get('job_key')}: {exc}")
-            upsert_job(
-                db_path,
-                job,
-                status="review",
-                easy_apply=job.get("easy_apply"),
-                score=score,
-                decision="apply_failed",
-            )
-            counts["review"] += 1
+    )
+    for key in ("applied", "review", "skipped", "deferred"):
+        counts[key] += lane_counts[key]
 
     prune_jobs(db_path, history_limit)
     log(

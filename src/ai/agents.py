@@ -12,6 +12,7 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
+from src.ai.agent_registry import build_agent_registry, get_agent_definition, is_agent_enabled, runtime_status_map
 from src.ai.llm import chat
 
 
@@ -109,16 +110,32 @@ class JobEvaluatorAgent(BaseAgent):
                 "concerns": [str]
             }
         """
+        from src.core.logger import log
+
+        job_title = job.get('title', 'Unknown Job')
+
         # Try pre-filtering first
+        log(f"Pre-filtering job: {job_title}", level="debug", agent="JobEvaluatorAgent", job_title=job_title)
         pre_filter_result = self.pre_filter(job)
         if pre_filter_result:
+            log(f"Pre-filter REJECTED: {pre_filter_result['reasoning']}", level="warning", agent="JobEvaluatorAgent", job_title=job_title)
             return pre_filter_result
 
+        log(f"Evaluating job with LLM", level="info", agent="JobEvaluatorAgent", job_title=job_title)
         system_prompt = self._get_system_prompt()
         user_prompt = self._build_evaluation_prompt(job)
 
         response = self._call_llm(system_prompt, user_prompt)
-        return self._parse_evaluation(response, job)
+        result = self._parse_evaluation(response, job)
+
+        decision = result.get('decision', 'REVIEW')
+        score = result.get('score', 0)
+        log(f"Evaluation complete: {decision} (score: {score})",
+            level="success" if decision == "APPLY" else "warning" if decision == "REVIEW" else "info",
+            agent="JobEvaluatorAgent",
+            job_title=job_title)
+
+        return result
 
     def _get_system_prompt(self) -> str:
         """Get cached system prompt."""
@@ -771,7 +788,7 @@ class RecoveryAgent(BaseAgent):
 
         # Check if we can retry
         if not task_context.can_retry() and error_type not in ["auth_required", "captcha_detected"]:
-            task_context.set_status(TaskStatus.FAILED)
+            task_context.set_status(TaskStatus.NEEDS_REVIEW)
             task_context.add_attempt(
                 AgentType.RECOVERY,
                 f"handle_{failure_reason}",
@@ -780,7 +797,8 @@ class RecoveryAgent(BaseAgent):
             return {
                 "success": False,
                 "reason": "max_retries_reached",
-                "action": "skip"
+                "action": "review",
+                "message": "Application needs manual review after automated retries were exhausted."
             }
 
         # Handle specific error types with targeted strategies
@@ -874,7 +892,7 @@ class RecoveryAgent(BaseAgent):
 
     async def _handle_no_forms(self, task_context, page) -> dict:
         """Handle case where no forms are found."""
-        from src.ai.task_context import AgentType
+        from src.ai.task_context import AgentType, TaskStatus
 
         # Try to find apply buttons or links
         apply_buttons = await page.query_selector_all(
@@ -887,30 +905,38 @@ class RecoveryAgent(BaseAgent):
                 "handle_no_forms",
                 "found_apply_button"
             )
-            # Click the button and re-run form detection
             try:
+                task_context.increment_retry()
                 await apply_buttons[0].click()
                 await page.wait_for_load_state("networkidle", timeout=5000)
-            except Exception:
-                pass
-
-            return {
-                "success": True,
-                "reason": "found_apply_button",
-                "action": "retry",
-                "delegate_to": "form_detector"
-            }
+                return {
+                    "success": True,
+                    "reason": "found_apply_button",
+                    "action": "retry",
+                    "delegate_to": "form_detector"
+                }
+            except Exception as exc:
+                task_context.add_error(f"Apply button click failed: {exc}")
+                task_context.set_status(TaskStatus.NEEDS_REVIEW)
+                return {
+                    "success": False,
+                    "reason": "apply_button_click_failed",
+                    "action": "review",
+                    "message": f"Apply button was found but the application flow could not continue automatically: {exc}"
+                }
 
         task_context.add_attempt(
             AgentType.RECOVERY,
             "handle_no_forms",
             "no_recovery_possible"
         )
+        task_context.set_status(TaskStatus.NEEDS_REVIEW)
 
         return {
             "success": False,
             "reason": "no_forms_or_buttons",
-            "action": "skip"
+            "action": "review",
+            "message": "Application page needs manual review because no form or apply button was detected."
         }
 
     async def _handle_missing_fields(self, task_context, page) -> dict:
@@ -965,7 +991,8 @@ class RecoveryAgent(BaseAgent):
         return {
             "success": False,
             "reason": "validation_error_max_retries",
-            "action": "skip"
+            "action": "review",
+            "message": "Application needs manual review after repeated validation errors."
         }
 
     async def _handle_network_error(self, task_context, page) -> dict:
@@ -993,7 +1020,8 @@ class RecoveryAgent(BaseAgent):
         return {
             "success": False,
             "reason": "network_error_max_retries",
-            "action": "skip"
+            "action": "review",
+            "message": "Application needs manual review after repeated network or timeout failures."
         }
 
     async def _handle_submission_failure(self, task_context, page) -> dict:
@@ -1017,7 +1045,8 @@ class RecoveryAgent(BaseAgent):
         return {
             "success": False,
             "reason": "submission_failed_max_retries",
-            "action": "skip"
+            "action": "review",
+            "message": "Application needs manual review after repeated submission failures."
         }
 
     async def _handle_generic_failure(self, task_context, page) -> dict:
@@ -1041,7 +1070,8 @@ class RecoveryAgent(BaseAgent):
         return {
             "success": False,
             "reason": "generic_failure_max_retries",
-            "action": "skip"
+            "action": "review",
+            "message": "Application needs manual review after repeated automation failures."
         }
 
 
@@ -1058,6 +1088,214 @@ class AgentOrchestrator:
         self.recovery = RecoveryAgent(profile, settings)
         self.profile = profile
         self.settings = settings
+        self.agent_registry = build_agent_registry(settings)
+        self.agent_runtime = runtime_status_map(self.agent_registry)
+
+    def _refresh_agent_registry(self) -> None:
+        self.agent_registry = build_agent_registry(self.settings, self.agent_runtime)
+
+    def _mark_agent_runtime(self, agent_id: str, status: str, **runtime) -> None:
+        current = self.agent_runtime.setdefault(agent_id, {})
+        current.update(runtime)
+        current["status"] = status
+        current["last_seen"] = datetime.now(timezone.utc).isoformat()
+        self._refresh_agent_registry()
+
+    def _agent_enabled(self, agent_id: str) -> bool:
+        return is_agent_enabled(self.settings, agent_id)
+
+    def _sync_task_agent_statuses(self, task_context) -> None:
+        for agent in self.agent_registry:
+            task_context.update_agent_status(
+                agent["id"],
+                agent["status"],
+                enabled=agent["enabled"],
+                required=agent["required"],
+                fallback=agent["fallback"],
+                display_name=agent["display_name"],
+                last_event=agent.get("last_event"),
+                last_seen=agent.get("last_seen"),
+                reason=agent.get("reason"),
+            )
+
+    def _disabled_agent_result(self, task_context, agent_id: str, reason: str, status: str = "needs_review") -> dict:
+        from src.core.logger import emit_agent_event
+
+        definition = get_agent_definition(agent_id=agent_id) or {"display_name": agent_id, "fallback": "review_required"}
+        task_context.update_agent_status(agent_id, "disabled", enabled=False, reason=reason)
+        task_context.add_transition(agent_id, reason, "disabled")
+        task_context.add_error(f"{definition['display_name']} unavailable: {reason}")
+        self._mark_agent_runtime(agent_id, "disabled", last_event="disabled", reason=reason)
+        emit_agent_event(
+            "disabled",
+            agent=definition["display_name"],
+            job_key=task_context.job_key,
+            job_title=task_context.metadata.get("title"),
+            status="disabled",
+            reason=reason,
+            level="warning",
+            metadata={"agent_id": agent_id, "fallback": definition["fallback"]},
+        )
+        return {
+            "success": False,
+            "status": status,
+            "reason": reason,
+            "action": "review",
+            "message": f"{definition['display_name']} is disabled. Fallback: {definition['fallback']}",
+            "task_context": task_context.to_dict(),
+        }
+
+    def _agent_started(self, task_context, agent_id: str, reason: str) -> None:
+        from src.core.logger import emit_agent_event
+
+        definition = get_agent_definition(agent_id=agent_id) or {"display_name": agent_id}
+        task_context.add_transition(agent_id, reason, "started")
+        task_context.update_agent_status(agent_id, "active", enabled=self._agent_enabled(agent_id), reason=reason)
+        self._mark_agent_runtime(agent_id, "active", last_event=reason, reason=reason)
+        emit_agent_event(
+            "started",
+            agent=definition["display_name"],
+            job_key=task_context.job_key,
+            job_title=task_context.metadata.get("title"),
+            status="active",
+            reason=reason,
+            metadata={"agent_id": agent_id},
+        )
+
+    def _agent_finished(self, task_context, agent_id: str, status: str, reason: str) -> None:
+        from src.core.logger import emit_agent_event
+
+        definition = get_agent_definition(agent_id=agent_id) or {"display_name": agent_id}
+        task_context.update_agent_status(agent_id, status, enabled=self._agent_enabled(agent_id), reason=reason)
+        self._mark_agent_runtime(agent_id, status, last_event=reason, reason=reason)
+        emit_agent_event(
+            "succeeded" if status == "idle" else "failed" if status == "degraded" else "heartbeat",
+            agent=definition["display_name"],
+            job_key=task_context.job_key,
+            job_title=task_context.metadata.get("title"),
+            status=status,
+            reason=reason,
+            metadata={"agent_id": agent_id},
+        )
+
+    def get_agent_registry(self) -> List[dict]:
+        self._refresh_agent_registry()
+        return self.agent_registry
+
+    def get_agent_status_map(self) -> Dict[str, Dict[str, Optional[str]]]:
+        return runtime_status_map(self.get_agent_registry())
+
+    def registry_version(self) -> str:
+        return max((agent.get("last_seen") or "" for agent in self.get_agent_registry()), default="")
+
+    def process_job(self, job: dict) -> dict:
+        return self._process_job_internal(job)
+
+    def _process_job_internal(self, job: dict) -> dict:
+        from src.ai.scorer import evaluate_job as heuristic_evaluate_job
+
+        if not self._agent_enabled("evaluator"):
+            min_score = self.settings.get("ai", {}).get("min_score", 70)
+            uncertainty_margin = self.settings.get("ai", {}).get("uncertainty_margin", 5)
+            llm_model = self.settings.get("ai", {}).get("llm_model", "llama3.2:latest")
+            evaluation = heuristic_evaluate_job(
+                job,
+                self.profile,
+                min_score,
+                uncertainty_margin,
+                model_state=None,
+                use_llm=self.settings.get("ai", {}).get("use_llm", False),
+                llm_model=llm_model,
+            )
+            evaluation["agent"] = "HeuristicEvaluator"
+            review_analysis = None
+            if evaluation.get("confused") or evaluation.get("decision") == "REVIEW":
+                review_analysis = None
+            application_plan = None
+            if evaluation.get("apply") and self._agent_enabled("application"):
+                application_plan = self.applicator.plan_application(job, evaluation)
+            return {
+                "evaluation": evaluation,
+                "review_analysis": review_analysis,
+                "application_plan": application_plan,
+                "agent_registry": self.get_agent_registry(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+        # Step 1: Pre-filter (fast, no LLM)
+        pre_filter_result = self.evaluator.pre_filter(job)
+        if pre_filter_result and not pre_filter_result.get("apply"):
+            return {
+                "evaluation": pre_filter_result,
+                "review_analysis": None,
+                "application_plan": None,
+                "agent_registry": self.get_agent_registry(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+
+        # Step 2: Evaluate the job (LLM call)
+        evaluation = self.evaluator.evaluate(job)
+
+        # Step 3: If needs review, get review analysis (LLM call)
+        review_analysis = None
+        if self._agent_enabled("review") and (evaluation.get("confused") or evaluation.get("decision") == "REVIEW"):
+            review_analysis = self.reviewer.analyze_for_review(job, evaluation)
+
+        # Step 4: Plan application strategy (rule-based, no LLM)
+        application_plan = None
+        if evaluation.get("apply") and self._agent_enabled("application"):
+            application_plan = self.applicator.plan_application(job, evaluation)
+
+        return {
+            "evaluation": evaluation,
+            "review_analysis": review_analysis,
+            "application_plan": application_plan,
+            "agent_registry": self.get_agent_registry(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def process_batch(self, jobs: List[dict]) -> List[dict]:
+        """
+        Process multiple jobs efficiently with parallel evaluation.
+
+        Returns:
+            List of processed jobs with priorities
+        """
+        import asyncio
+        from concurrent.futures import ThreadPoolExecutor
+
+        # Pre-filter jobs first (fast, no LLM)
+        filtered_jobs = []
+        rejected_count = 0
+
+        for job in jobs:
+            pre_filter_result = self.evaluator.pre_filter(job)
+            if pre_filter_result and not pre_filter_result.get("apply"):
+                rejected_count += 1
+                continue
+            filtered_jobs.append(job)
+
+        if rejected_count > 0:
+            from src.core.logger import log
+            log(f"[Orchestrator] Pre-filtered {rejected_count} jobs (seniority blocklist)")
+
+        # Evaluate remaining jobs (with LLM)
+        jobs_with_evaluations = []
+        for job in filtered_jobs:
+            evaluation = self.evaluator.evaluate(job)
+            if evaluation.get("apply"):
+                jobs_with_evaluations.append((job, evaluation))
+
+        # Prioritize using rule-based sorting (no LLM)
+        prioritized = self.strategist.prioritize_batch(jobs_with_evaluations)
+
+        # Add application plans using rule-based logic (no LLM)
+        for item in prioritized:
+            item["application_plan"] = self.applicator.plan_application(
+                item["job"], item["evaluation"]
+            )
+
+        return prioritized
 
     async def execute_application(self, task_context, page) -> dict:
         """
@@ -1072,44 +1310,106 @@ class AgentOrchestrator:
         Returns:
             Final application result
         """
-        from src.ai.task_context import TaskStatus, AgentType
+        from src.ai.task_context import TaskStatus
         from src.core.logger import log
 
-        log(f"[Orchestrator] Starting application for job {task_context.job_key}")
+        job_title = task_context.metadata.get("title", "Unknown Job")
+
+        self._sync_task_agent_statuses(task_context)
+        log(f"Starting application workflow", level="info", agent="AgentOrchestrator", job_title=job_title)
         task_context.set_status(TaskStatus.IN_PROGRESS)
 
-        # Step 1: Navigate to apply URL
+        if not self._agent_enabled("navigator"):
+            return self._disabled_agent_result(task_context, "navigator", "navigation_agent_disabled")
+
+        self._agent_started(task_context, "navigator", "navigate_to_job")
+        log(f"Step 1: Navigating to job URL", level="info", agent="NavigationAgent", job_title=job_title)
         nav_result = await self.navigator.handle_navigation(task_context, page)
-        log(f"[Orchestrator] Navigation result: {nav_result.get('success')}")
 
         if not nav_result["success"]:
+            self._agent_finished(task_context, "navigator", "degraded", nav_result.get("reason", "navigation_failed"))
+            log(f"Navigation FAILED: {nav_result.get('reason')}", level="error", agent="NavigationAgent", job_title=job_title)
             return await self._delegate_to_recovery(
                 task_context, page, nav_result.get("reason", "navigation_failed")
             )
 
-        # Step 2: Detect forms
+        self._agent_finished(task_context, "navigator", "idle", "navigation_complete")
+        log(f"Navigation successful", level="success", agent="NavigationAgent", job_title=job_title)
+
         if nav_result.get("delegate_to") == "form_detector":
+            from src.core.logger import emit_agent_event
+            emit_agent_event(
+                "delegation",
+                agent="NavigationAgent",
+                target_agent="FormDetectionAgent",
+                job_key=task_context.job_key,
+                job_title=job_title,
+                status="delegated",
+                reason="navigation_complete",
+                metadata={"source_agent_id": "navigator", "target_agent_id": "form_detector"},
+            )
+
+            if not self._agent_enabled("form_detector"):
+                return self._disabled_agent_result(task_context, "form_detector", "form_detection_agent_disabled")
+
+            self._agent_started(task_context, "form_detector", "detect_form")
+            log(f"Step 2: Detecting application form", level="info", agent="FormDetectionAgent", job_title=job_title)
             form_result = await self.form_detector.detect_form(task_context, page)
-            log(f"[Orchestrator] Form detection result: {form_result.get('success')}")
 
             if not form_result["success"]:
+                self._agent_finished(task_context, "form_detector", "degraded", form_result.get("reason", "form_detection_failed"))
+                log(f"Form detection FAILED: {form_result.get('reason')}", level="error", agent="FormDetectionAgent", job_title=job_title)
                 return await self._delegate_to_recovery(
                     task_context, page, form_result.get("reason", "form_detection_failed")
                 )
 
-            # Step 3: Fill form
+            self._agent_finished(task_context, "form_detector", "idle", "form_detected")
+            fields_count = form_result.get("fields_detected", 0)
+            log(f"Form detected: {fields_count} fields found", level="success", agent="FormDetectionAgent", job_title=job_title)
+
             if form_result.get("delegate_to") == "form_filler":
+                from src.core.logger import emit_agent_event
+                emit_agent_event(
+                    "delegation",
+                    agent="FormDetectionAgent",
+                    target_agent="FormFillerAgent",
+                    job_key=task_context.job_key,
+                    job_title=job_title,
+                    status="delegated",
+                    reason="form_detected",
+                    metadata={"source_agent_id": "form_detector", "target_agent_id": "form_filler", "fields_detected": fields_count},
+                )
+
+                if not self._agent_enabled("form_filler"):
+                    return self._disabled_agent_result(task_context, "form_filler", "form_filler_agent_disabled")
+
+                self._agent_started(task_context, "form_filler", "fill_form")
+                log(f"Step 3: Filling application form", level="info", agent="FormFillerAgent", job_title=job_title)
                 fill_result = await self._fill_form(task_context, page)
-                log(f"[Orchestrator] Form fill result: {fill_result.get('success')}")
 
                 if not fill_result["success"]:
+                    self._agent_finished(task_context, "form_filler", "degraded", fill_result.get("reason", "submission_failed"))
+                    log(f"Form filling FAILED: {fill_result.get('reason')}", level="error", agent="FormFillerAgent", job_title=job_title)
                     return await self._delegate_to_recovery(
-                        task_context, page, "submission_failed"
+                        task_context, page, fill_result.get("reason", "submission_failed")
                     )
 
+                if fill_result.get("needs_review") or fill_result.get("status") == "needs_review":
+                    self._agent_finished(task_context, "form_filler", "degraded", "submission_needs_review")
+                    task_context.set_status(TaskStatus.NEEDS_REVIEW)
+                    return {
+                        "success": True,
+                        "status": "needs_review",
+                        "needs_review": True,
+                        "task_context": task_context.to_dict(),
+                        "verification": fill_result.get("verification"),
+                        "confirmation": fill_result.get("confirmation"),
+                    }
+
+                self._agent_finished(task_context, "form_filler", "idle", "submission_completed")
                 task_context.submission_successful = True
                 task_context.set_status(TaskStatus.COMPLETED)
-                log(f"[Orchestrator] Application completed successfully for {task_context.job_key}")
+                log(f"Application COMPLETED successfully!", level="success", agent="AgentOrchestrator", job_title=job_title)
 
                 return {
                     "success": True,
@@ -1117,8 +1417,8 @@ class AgentOrchestrator:
                     "task_context": task_context.to_dict()
                 }
 
-        # Fallback
         task_context.set_status(TaskStatus.FAILED)
+        log(f"Application FAILED: unexpected workflow", level="error", agent="AgentOrchestrator", job_title=job_title)
         return {
             "success": False,
             "status": "failed",
@@ -1130,19 +1430,83 @@ class AgentOrchestrator:
         """Delegate to recovery agent."""
         from src.core.logger import log
 
-        log(f"[Orchestrator] Delegating to recovery agent: {failure_reason}")
+        job_title = task_context.metadata.get("title", "Unknown Job")
+
+        if not self._agent_enabled("recovery"):
+            task_context.set_status(TaskStatus.NEEDS_REVIEW)
+            return self._disabled_agent_result(task_context, "recovery", f"recovery_agent_disabled_after_{failure_reason}")
+
+        from src.core.logger import emit_agent_event
+
+        source_agent_id = task_context.current_agent
+        source_definition = get_agent_definition(agent_id=source_agent_id) if source_agent_id else None
+        emit_agent_event(
+            "delegation",
+            agent=source_definition.get("display_name") if source_definition else "AgentOrchestrator",
+            target_agent="RecoveryAgent",
+            job_key=task_context.job_key,
+            job_title=job_title,
+            status="delegated",
+            reason=failure_reason,
+            metadata={"source_agent_id": source_agent_id, "target_agent_id": "recovery"},
+        )
+        self._agent_started(task_context, "recovery", failure_reason)
+
+        log(f"Delegating to recovery: {failure_reason}", level="warning", agent="RecoveryAgent", job_title=job_title)
 
         recovery_result = await self.recovery.handle_failure(task_context, page, failure_reason)
 
         if recovery_result.get("action") == "retry":
-            # Retry based on delegate_to
+            self._agent_finished(task_context, "recovery", "active", f"retry_{recovery_result.get('delegate_to')}")
+            log(f"Recovery: Retrying {recovery_result.get('delegate_to')}", level="info", agent="RecoveryAgent", job_title=job_title)
             delegate_to = recovery_result.get("delegate_to")
             if delegate_to == "navigator":
                 return await self.execute_application(task_context, page)
+            elif delegate_to == "form_detector":
+                if not self._agent_enabled("form_detector"):
+                    return self._disabled_agent_result(task_context, "form_detector", "form_detection_agent_disabled")
+                self._agent_started(task_context, "form_detector", "retry_form_detection")
+                form_result = await self.form_detector.detect_form(task_context, page)
+                if not form_result["success"]:
+                    self._agent_finished(task_context, "form_detector", "degraded", form_result.get("reason", "form_detection_failed"))
+                    return await self._delegate_to_recovery(
+                        task_context, page, form_result.get("reason", "form_detection_failed")
+                    )
+                self._agent_finished(task_context, "form_detector", "idle", "form_detected")
+                if form_result.get("delegate_to") == "form_filler":
+                    if not self._agent_enabled("form_filler"):
+                        return self._disabled_agent_result(task_context, "form_filler", "form_filler_agent_disabled")
+                    self._agent_started(task_context, "form_filler", "fill_form")
+                    fill_result = await self._fill_form(task_context, page)
+                    if not fill_result["success"]:
+                        self._agent_finished(task_context, "form_filler", "degraded", fill_result.get("reason", "submission_failed"))
+                        return await self._delegate_to_recovery(
+                            task_context, page, fill_result.get("reason", "submission_failed")
+                        )
+                    if fill_result.get("needs_review") or fill_result.get("status") == "needs_review":
+                        self._agent_finished(task_context, "form_filler", "degraded", "submission_needs_review")
+                        task_context.set_status(TaskStatus.NEEDS_REVIEW)
+                        return {
+                            "success": True,
+                            "status": "needs_review",
+                            "needs_review": True,
+                            "task_context": task_context.to_dict(),
+                            "verification": fill_result.get("verification"),
+                            "confirmation": fill_result.get("confirmation"),
+                        }
+                    self._agent_finished(task_context, "form_filler", "idle", "submission_completed")
+                    task_context.submission_successful = True
+                    task_context.set_status(TaskStatus.COMPLETED)
+                    return {
+                        "success": True,
+                        "status": "completed",
+                        "task_context": task_context.to_dict()
+                    }
             elif delegate_to == "form_filler":
                 return await self._fill_form(task_context, page)
 
-        # Recovery failed or requires manual intervention
+        self._agent_finished(task_context, "recovery", "degraded", recovery_result.get("reason", "recovery_failed"))
+        log(f"Recovery FAILED: {recovery_result.get('reason')}", level="error", agent="RecoveryAgent", job_title=job_title)
         return {
             "success": False,
             "status": "failed",
@@ -1308,34 +1672,11 @@ class AgentOrchestrator:
                     metadata={"verification": verification_result}
                 )
                 return {
-                    "success": True,  # Assume success but flag for review
+                    "success": True,
+                    "status": "needs_review",
                     "confirmation": "Submission status uncertain - needs review",
                     "verification": verification_result,
                     "needs_review": True
-                }
-
-            if confirmation_found:
-                log(f"[Orchestrator] Application submitted successfully")
-                task_context.add_attempt(
-                    AgentType.FORM_FILLER,
-                    "submit_form",
-                    "success"
-                )
-                return {
-                    "success": True,
-                    "confirmation": task_context.confirmation_message
-                }
-            else:
-                # Assume success if no error
-                log(f"[Orchestrator] Form submitted (no explicit confirmation)")
-                task_context.add_attempt(
-                    AgentType.FORM_FILLER,
-                    "submit_form",
-                    "success_assumed"
-                )
-                return {
-                    "success": True,
-                    "confirmation": "Form submitted (no confirmation message)"
                 }
 
         except Exception as exc:

@@ -1,6 +1,6 @@
-name: Your Name
-role: Cybersecurity Fresher
-experience: 3 months internship
+name: ""
+role: ""
+experience: ""
 email: ""
 phone: ""
 current_company: ""
@@ -18,12 +18,5 @@ willing_to_relocate: ""
 willing_to_work_onsite: ""
 willing_to_work_shifts: ""
 willing_to_travel: ""
-skills:
-  - SOC
-  - Linux
-  - Networking
-keywords:
-  - security
-  - soc analyst
-  - cyber
-  - threat
+skills: []
+keywords: []

@@ -24,7 +24,7 @@
       <div class="status-icon pulse-purple"></div>
       <div class="status-info">
         <div class="status-label">Applications Today</div>
-        <div class="status-value">{{ stats.applied_today }}/{{ limits_daily }}</div>
+        <div class="status-value">{{ stats.applied_today }}</div>
       </div>
     </div>
     <div class="status-item">
@@ -318,12 +318,9 @@
                 <span class="slider"></span>
               </label>
             </div>
-            <div class="toggle-item">
-              <span class="toggle-label">Easy Apply First</span>
-              <label class="switch">
-                <input type="checkbox" id="easyApplyToggle" {{ 'checked' if easy_apply_first else '' }} onchange="toggleEasyApply()">
-                <span class="slider"></span>
-              </label>
+            <div class="toggle-item" style="align-items: flex-start; flex-direction: column; gap: 6px;">
+              <span class="toggle-label">Easy Apply Parallel Lane</span>
+              <span style="font-size: 12px; color: var(--text-secondary);">Always on during auto-apply. Easy Apply jobs run in a parallel lane while standard jobs stay on the normal workflow.</span>
             </div>
           </div>
         </div>
@@ -346,10 +343,6 @@
                 {% else %}
                 <button class="btn-sm btn-success" onclick="startService('{{ platform }}')">Start</button>
                 {% endif %}
-                <label class="switch-mini">
-                  <input type="checkbox" {{ 'checked' if platform_enabled[platform] else '' }} onchange="togglePlatform('{{ platform }}')">
-                  <span class="slider-mini"></span>
-                </label>
               </div>
             </div>
             {% endfor %}
@@ -460,7 +453,14 @@ function bulkApprove() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({job_keys: selected})
-    }).then(() => location.reload());
+    })
+      .then(response => response.json())
+      .then(data => {
+        const results = data.results || [];
+        const summary = results.map(item => `${item.job_key.slice(0, 8)}: ${item.message}`).join('\n');
+        alert(summary || 'Bulk approve finished.');
+        location.reload();
+      });
   }
 }
 
@@ -484,9 +484,18 @@ function approveJob(jobKey) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({job_key: jobKey})
-  }).then(() => {
-    document.querySelector(`[data-job-key="${jobKey}"]`).style.opacity = '0.3';
-  });
+  })
+    .then(response => response.json())
+    .then(data => {
+      alert(data.message || 'Approve request finished.');
+      if (data.level === 'ok') {
+        const row = document.querySelector(`[data-job-key="${jobKey}"]`);
+        if (row) {
+          row.style.opacity = '0.3';
+        }
+      }
+      location.reload();
+    });
 }
 
 function rejectJob(jobKey) {
@@ -505,14 +514,6 @@ function viewJob(url) {
 
 function toggleAI() {
   fetch('/toggle/ai', {method: 'POST'}).then(() => location.reload());
-}
-
-function toggleEasyApply() {
-  fetch('/toggle/easy-apply', {method: 'POST'}).then(() => location.reload());
-}
-
-function togglePlatform(platform) {
-  fetch(`/toggle/platform/${platform}`, {method: 'POST'});
 }
 
 function startService(platform) {

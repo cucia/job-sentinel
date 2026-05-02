@@ -52,6 +52,7 @@ def evaluate_job_with_agents(
         "confidence": evaluation.get("confidence", 0),
         "priority_score": evaluation.get("priority_score", 0),
         "decision": evaluation.get("decision", "REVIEW"),
+        "agent_registry": result.get("agent_registry", []),
 
         # Agent-specific fields
         "reasoning": evaluation.get("reasoning", ""),
@@ -75,7 +76,11 @@ def evaluate_job_with_agents(
 
         # Agent metadata
         "agent_version": "multi-agent-v1.0",
-        "agents_used": ["JobEvaluatorAgent", "ApplicationAgent", "ReviewAgent"],
+        "agents_used": [
+            agent.get("display_name")
+            for agent in result.get("agent_registry", [])
+            if agent.get("enabled") and agent.get("stage") == "evaluation"
+        ] or ["JobEvaluatorAgent", "ApplicationAgent", "ReviewAgent"],
     }
 
     return decision
