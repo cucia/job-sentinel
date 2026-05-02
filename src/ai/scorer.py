@@ -224,93 +224,9 @@ def evaluate_job(
     min_score: int = 70,
     uncertainty_margin: int = 5,
     model_state: dict | None = None,
-    use_llm: bool = False,
-    llm_model: str = None,
 ) -> dict:
-    """Evaluate if a job matches the candidate profile.
-
-    Args:
-        job: Job dictionary with title, company, description, etc.
-        profile: Candidate profile with skills, keywords, role, etc.
-        min_score: Minimum score to recommend applying
-        uncertainty_margin: Score range to mark as "confused"
-        model_state: Learned weights from feedback (unused if use_llm=True)
-        use_llm: Whether to use Ollama for evaluation
-        llm_model: Specific Ollama model to use
-
-    Returns:
-        Dict with apply decision, score, reasoning, etc.
-    """
-    if use_llm:
-        return _llm_evaluate_job(job, profile, min_score, uncertainty_margin, llm_model)
+    """Evaluate if a job matches the candidate profile."""
     return _heuristic_evaluate_job(job, profile)
-
-
-def _llm_evaluate_job(job: dict, profile: dict, min_score: int, uncertainty_margin: int, llm_model: str = None) -> dict:
-    """Use Ollama to evaluate job matching."""
-    try:
-        from src.ai.llm import chat
-    except ImportError:
-        return _heuristic_evaluate_job(job, profile)
-
-    prompt = _build_job_prompt(job, profile)
-
-    try:
-        response = chat(
-            messages=[{"role": "user", "content": prompt}],
-            model=llm_model,
-            temperature=0.1,
-        )
-    except Exception as exc:
-        return {
-            "apply": False,
-            "score": 0,
-            "priority_score": 0,
-            "confused": True,
-            "heuristic_score": 0,
-            "learned_adjustment": 0,
-            "matched_terms": [],
-            "signals": [],
-            "trained_examples": 0,
-            "llm_error": str(exc),
-        }
-
-    score = 50
-    decision = "REVIEW"
-    reason = "LLM evaluation completed"
-
-    for line in response.split("\n"):
-        line = line.strip()
-        if line.startswith("SCORE:"):
-            parts = line.split("|")
-            for part in parts:
-                part = part.strip()
-                if part.startswith("SCORE:"):
-                    try:
-                        score = int(part.split(":")[1].strip())
-                    except (ValueError, IndexError):
-                        pass
-                elif part.startswith("DECISION:"):
-                    decision = part.split(":")[1].strip().upper()
-                elif part.startswith("REASON:"):
-                    reason = part.split(":", 1)[1].strip()
-
-    apply_decision = decision == "APPLY" and score >= min_score
-    confused = abs(score - min_score) <= uncertainty_margin or decision == "REVIEW"
-
-    return {
-        "apply": apply_decision,
-        "score": score,
-        "priority_score": score + (8 if job.get("easy_apply") else 0),
-        "confused": confused,
-        "heuristic_score": score,
-        "learned_adjustment": 0,
-        "matched_terms": [],
-        "signals": [],
-        "trained_examples": 0,
-        "llm_reason": reason,
-        "llm_decision": decision,
-    }
 
 
 def update_model(

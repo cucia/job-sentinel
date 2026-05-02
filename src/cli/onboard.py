@@ -151,7 +151,7 @@ def onboard_from_resume(resume_path: str, profile_name: Optional[str] = None) ->
     print(f"\nParsing resume: {resume_path}")
 
     try:
-        resume_data = parse_resume(resume_path, use_llm=True)
+        resume_data = parse_resume(resume_path)
     except Exception as e:
         print(f"\nError parsing resume: {e}")
         sys.exit(1)

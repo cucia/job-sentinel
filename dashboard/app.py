@@ -461,8 +461,6 @@ def _dashboard_context(base_dir: str, settings: dict, db_path: str) -> dict:
         "naukri": "naukri" in enabled,
     }
     use_ai = bool(settings.get("app", {}).get("use_ai", False))
-    use_llm = bool(settings.get("ai", {}).get("use_llm", False))
-    llm_model = settings.get("ai", {}).get("llm_model", "llama3.2:latest")
     headless = bool(settings.get("app", {}).get("headless", True))
     run_interval = int(settings.get("app", {}).get("run_interval_seconds", 300))
     pipeline_mode = _pipeline_mode(settings)
@@ -493,13 +491,6 @@ def _dashboard_context(base_dir: str, settings: dict, db_path: str) -> dict:
         1 for info in session_info.get("platforms", {}).values() if info.get("login_status") == "ready"
     )
 
-    # Check Ollama status
-    try:
-        from src.ai.llm import check_ollama_status
-        ollama_status = check_ollama_status()
-    except Exception:
-        ollama_status = {"available": False, "models": [], "default": "llama3.2:latest"}
-
     return {
         "platform_enabled": platform_enabled,
         "use_ai": use_ai,
@@ -521,9 +512,6 @@ def _dashboard_context(base_dir: str, settings: dict, db_path: str) -> dict:
         "profile_names": profile_names,
         "session_info": session_info,
         "session_ready_count": session_ready_count,
-        "ollama_status": ollama_status,
-        "use_llm": use_llm,
-        "llm_model": llm_model,
         "vnc_url": _vnc_url(),
         "messages": _load_recent_log(base_dir, limit=18),
         "notice": (request.args.get("notice") or "").strip(),
@@ -1106,7 +1094,7 @@ def upload_resume():
             tmp_path = tmp.name
 
         try:
-            resume_data = parse_resume(tmp_path, use_llm=True)
+            resume_data = parse_resume(tmp_path)
             new_profile = init_profile_from_resume(base_dir, resume_data)
             update_profile_fields(base_dir, profile_name, new_profile)
             return _redirect_page("profile_page", profile_name, "Resume parsed successfully! Review and save the extracted data.", "ok")
@@ -1222,18 +1210,6 @@ def toggle_ai():
     save_settings(base_dir, settings)
     return _redirect_page("automation", profile_name, f"AI filter turned {'on' if app_cfg['use_ai'] else 'off'}.", "ok")
 
-
-@app.post("/toggle/llm")
-def toggle_llm():
-    base_dir, settings, _db_path = _load_settings_and_db()
-    profile_name = _profile_key(
-        request.form.get("profile_name"),
-        fallback=default_profile_name(base_dir),
-    )
-    ai_cfg = settings.setdefault("ai", {})
-    ai_cfg["use_llm"] = not bool(ai_cfg.get("use_llm", False))
-    save_settings(base_dir, settings)
-    return _redirect_page("automation", profile_name, f"LLM evaluation turned {'on' if ai_cfg['use_llm'] else 'off'}.", "ok")
 
 
 @app.post("/service/start/<service>")
