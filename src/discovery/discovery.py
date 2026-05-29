@@ -14,9 +14,6 @@ the need for controller.py in the discovery phase.
 """
 
 from src.core.logger import log
-from src.platforms.linkedin.collector import collect_jobs as collect_linkedin
-from src.platforms.indeed.collector import collect_jobs as collect_indeed
-from src.platforms.naukri.collector import collect_jobs as collect_naukri
 
 
 class JobDiscovery:
@@ -43,6 +40,10 @@ class JobDiscovery:
         Returns:
             List of discovered jobs
         """
+        from src.platforms.linkedin.collector import collect_jobs as collect_linkedin
+        from src.platforms.indeed.collector import collect_jobs as collect_indeed
+        from src.platforms.naukri.collector import collect_jobs as collect_naukri
+
         enabled = enabled_override or self.settings.get("platforms", {}).get("enabled", [])
         jobs = []
 
@@ -80,6 +81,8 @@ class JobDiscovery:
         Returns:
             List of LinkedIn jobs
         """
+        from src.platforms.linkedin.collector import collect_jobs as collect_linkedin
+
         try:
             jobs = collect_linkedin(self.settings, self.profile)
             log(f"[Discovery] LinkedIn: {len(jobs)} jobs")
@@ -95,6 +98,8 @@ class JobDiscovery:
         Returns:
             List of Indeed jobs
         """
+        from src.platforms.indeed.collector import collect_jobs as collect_indeed
+
         try:
             jobs = collect_indeed(self.settings, self.profile)
             log(f"[Discovery] Indeed: {len(jobs)} jobs")
@@ -110,6 +115,8 @@ class JobDiscovery:
         Returns:
             List of Naukri jobs
         """
+        from src.platforms.naukri.collector import collect_jobs as collect_naukri
+
         try:
             jobs = collect_naukri(self.settings, self.profile)
             log(f"[Discovery] Naukri: {len(jobs)} jobs")

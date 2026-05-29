@@ -2,7 +2,6 @@ import os
 from urllib.parse import quote_plus
 
 from src.core.async_runner import run
-from src.core.browser import open_context, close_context
 from src.core.logger import log
 from src.core.session import ensure_session, get_session_path
 
@@ -36,6 +35,8 @@ def collect_jobs(settings: dict, profile: dict) -> list:
     url = f"https://www.indeed.com/jobs?q={query}&l={loc}"
 
     async def _collect():
+        from src.core.browser import open_context, close_context
+
         playwright, browser, context = await open_context(
             headless=headless,
             storage_state_path=session_path,
