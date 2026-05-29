@@ -5,7 +5,7 @@ app:
   pipeline_mode: direct_latest
   latest_results_limit: 100
   apply_all: true
-  use_ai: true
+  use_ai: false
   use_policy: false
   easy_apply_first: true
   entry_level_only: false
