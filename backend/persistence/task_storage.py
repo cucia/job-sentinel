@@ -93,6 +93,15 @@ class TaskStorage:
         """
         import json
 
+        # Preserve workflow fields in metadata
+        metadata_to_save = dict(task.metadata or {})
+        metadata_to_save.update({
+            "_workflow_type": task.workflow_type,
+            "_execution_strategy": task.execution_strategy,
+            "_workflow_confidence": task.workflow_confidence,
+            "_workflow_indicators": task.workflow_indicators,
+        })
+
         with self._connect() as conn:
             conn.execute(
                 """
@@ -126,7 +135,7 @@ class TaskStorage:
                     task.result.value if task.result else None,
                     task.error_message,
                     json.dumps(task.manual_review_context) if task.manual_review_context else None,
-                    json.dumps(task.metadata),
+                    json.dumps(metadata_to_save),
                     task.created_at.isoformat(),
                     task.updated_at.isoformat(),
                     task.started_at.isoformat() if task.started_at else None,
@@ -414,6 +423,15 @@ class TaskStorage:
         """Convert database row to Task object."""
         import json
 
+        # Extract metadata and workflow fields
+        metadata = json.loads(row[11]) if row[11] else {}
+
+        # Extract workflow fields from metadata
+        workflow_type = metadata.pop("_workflow_type", None)
+        execution_strategy = metadata.pop("_execution_strategy", None)
+        workflow_confidence = metadata.pop("_workflow_confidence", 0.0)
+        workflow_indicators = metadata.pop("_workflow_indicators", {})
+
         return Task(
             task_id=row[0],
             job_id=row[1],
@@ -426,7 +444,11 @@ class TaskStorage:
             result=TaskResult(row[8]) if row[8] else None,
             error_message=row[9],
             manual_review_context=json.loads(row[10]) if row[10] else None,
-            metadata=json.loads(row[11]) if row[11] else {},
+            metadata=metadata,
+            workflow_type=workflow_type,
+            execution_strategy=execution_strategy,
+            workflow_confidence=workflow_confidence,
+            workflow_indicators=workflow_indicators,
             created_at=datetime.fromisoformat(row[12]),
             updated_at=datetime.fromisoformat(row[13]),
             started_at=datetime.fromisoformat(row[14]) if row[14] else None,

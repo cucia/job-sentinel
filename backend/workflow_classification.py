@@ -99,7 +99,7 @@ class WorkflowClassifier:
         # Sort by confidence (highest first)
         results.sort(key=lambda x: x["confidence"], reverse=True)
 
-        # Return best match or unknown
+        # Return best match or generic fallback
         if results and results[0]["confidence"] > 0.0:
             best = results[0]
             return WorkflowClassification(
@@ -111,11 +111,11 @@ class WorkflowClassifier:
             )
 
         return WorkflowClassification(
-            workflow_type=WorkflowType.UNKNOWN,
+            workflow_type=WorkflowType.GENERIC,
             confidence_score=0.0,
-            execution_strategy=ExecutionStrategy.MANUAL_REVIEW,
-            indicators={},
-            reasoning="Could not classify workflow type",
+            execution_strategy=ExecutionStrategy.GENERIC_FORM_FLOW,
+            indicators={"fallback_to_generic": True},
+            reasoning="Could not classify specifically, treating as generic form",
         )
 
     def _classify_linkedin_easy_apply(
