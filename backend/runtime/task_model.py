@@ -43,6 +43,11 @@ class Task:
     error_message: Optional[str] = None
     manual_review_context: Optional[dict] = None
     metadata: dict = field(default_factory=dict)
+    # Workflow classification fields
+    workflow_type: Optional[str] = None
+    execution_strategy: Optional[str] = None
+    workflow_confidence: float = 0.0
+    workflow_indicators: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         """Convert task to dictionary, serializing enums and datetimes."""

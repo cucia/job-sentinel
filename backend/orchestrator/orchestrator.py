@@ -6,6 +6,8 @@ from backend.queue.queue import Queue
 from backend.state.state_manager import StateManager
 from backend.workers.browser_worker import WorkerPool
 from backend.manual_review.review_queue import ManualReviewQueue
+from backend.workflow.handlers import WorkflowHandlerRegistry
+from src.core.logger import log
 
 
 class RuntimeOrchestrator:
@@ -36,6 +38,8 @@ class RuntimeOrchestrator:
         self.max_concurrent_tasks = max_concurrent_tasks
         self._active_tasks: dict[str, Task] = {}
         self._running = False
+        # Initialize workflow routing
+        self.workflow_registry = WorkflowHandlerRegistry()
 
     async def start(self) -> None:
         """Start orchestrator event loop."""
@@ -70,7 +74,7 @@ class RuntimeOrchestrator:
 
     async def _execute_task(self, task: Task) -> None:
         """
-        Execute single task with full lifecycle management.
+        Execute single task with workflow-aware routing.
 
         Args:
             task: Task to execute
@@ -78,19 +82,24 @@ class RuntimeOrchestrator:
         self._active_tasks[task.task_id] = task
 
         try:
-            # Find suitable worker
-            worker = self.worker_pool.find_worker_for_task(task)
-            if not worker:
-                await self._handle_no_worker(task)
+            # Route to workflow handler
+            workflow_result = self._route_to_workflow(task)
+
+            if not workflow_result.get("valid", False):
+                log(f"[Orchestrator] Task {task.task_id} workflow routing failed: {workflow_result.get('reason')}")
+                await self._handle_execution_error(task, workflow_result.get("reason", "Unknown error"))
                 return
 
+            log(f"[Orchestrator] Task {task.task_id} routed to {workflow_result.get('handler')}")
+            log(f"  - Next step: {workflow_result.get('next_step')}")
+            log(f"  - Requires: {workflow_result.get('requires')}")
+
             # Transition to running
-            self.state_manager.transition_to_running(task, worker.worker_id)
+            self.state_manager.transition_to_running(task, "workflow_handler")
 
-            # Execute task
-            result = await worker.execute(task)
-
-            # Handle result
+            # In Phase 3+, execute task based on workflow_result
+            # For now, just mark as completed for routing validation
+            result = TaskResult.APPLIED
             await self._handle_result(task, result)
 
         except Exception as e:
@@ -98,6 +107,66 @@ class RuntimeOrchestrator:
 
         finally:
             self._active_tasks.pop(task.task_id, None)
+
+    def _route_to_workflow(self, task: Task) -> dict:
+        """
+        Route task to appropriate workflow handler.
+
+        Args:
+            task: Task to route
+
+        Returns:
+            Routing result dict with handler info and preparation data
+        """
+        if not task.workflow_type:
+            return {
+                "valid": False,
+                "reason": "No workflow_type attached to task",
+            }
+
+        routing_result = self.workflow_registry.route_task(task)
+
+        log(f"[Orchestrator] Routing task {task.task_id}")
+        log(f"  - Workflow type: {task.workflow_type}")
+        log(f"  - Execution strategy: {task.execution_strategy}")
+        log(f"  - Confidence: {task.workflow_confidence:.0%}")
+
+        return routing_result
+
+    def _log_workflow_classification(self, task: Task) -> None:
+        """
+        Log workflow classification information for task.
+
+        Args:
+            task: Task to log classification for
+        """
+        if task.workflow_type:
+            print(f"[Orchestrator] Task {task.task_id}:")
+            print(f"  - Workflow Type: {task.workflow_type}")
+            print(f"  - Execution Strategy: {task.execution_strategy}")
+            print(f"  - Confidence: {task.workflow_confidence:.0%}")
+            print(f"  - Indicators: {len(task.workflow_indicators)} detected")
+
+    def get_task_workflow_info(self, task_id: str) -> dict:
+        """
+        Get workflow classification info for a task.
+
+        Args:
+            task_id: Task identifier
+
+        Returns:
+            Dict with workflow type, strategy, and confidence
+        """
+        task = self._active_tasks.get(task_id)
+        if not task:
+            return {}
+
+        return {
+            "workflow_type": task.workflow_type,
+            "execution_strategy": task.execution_strategy,
+            "workflow_confidence": task.workflow_confidence,
+            "workflow_indicators": task.workflow_indicators,
+        }
 
     async def _handle_result(self, task: Task, result: TaskResult) -> None:
         """

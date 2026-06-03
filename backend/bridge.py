@@ -15,6 +15,7 @@ from backend.events.event_bus import EventBus
 from backend.workers.browser_worker import WorkerPool, BrowserWorker
 from backend.manual_review.review_queue import ManualReviewQueue
 from backend.orchestrator.orchestrator import RuntimeOrchestrator
+from backend.workflow_classification import create_classifier
 from src.core.logger import log
 
 
@@ -37,6 +38,9 @@ class RuntimeBridge:
         self.profile = profile
         self.platforms = platforms
         self.resume_path = resume_path
+
+        # Initialize workflow classifier
+        self.classifier = create_classifier()
 
         # Initialize runtime infrastructure
         self.storage = TaskStorage(db_path)
@@ -97,14 +101,29 @@ class RuntimeBridge:
         from src.core.controller import _make_job_key
 
         job_key = _make_job_key(job)
+
+        # Classify workflow
+        job_url = job.get("url", "")
+        job_title = job.get("title", "")
+        classification = self.classifier.classify(url=job_url, page_title=job_title)
+
+        # Create task with classification data
         task = self.orchestrator.enqueue_task(
             task_id=job_key,
             job_id=job_key,
             source_platform=job.get("platform", "unknown"),
             priority=priority,
-            metadata={"job": job},
+            metadata={
+                "job": job,
+                "workflow_type": classification.workflow_type.value,
+                "workflow_confidence": classification.confidence_score,
+                "execution_strategy": classification.execution_strategy.value,
+                "workflow_indicators": classification.indicators,
+            },
         )
-        log(f"[Bridge] Enqueued job: {job_key} platform={job.get('platform')}")
+
+        log(f"[Bridge] Enqueued job: {job_key} platform={job.get('platform')} workflow={classification.workflow_type.value} confidence={classification.confidence_score:.0%}")
+        return taskjob.get('platform')}")
         return task.task_id
 
     def enqueue_jobs(self, jobs: list, priority: int = 0) -> list:
