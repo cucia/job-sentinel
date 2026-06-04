@@ -29,9 +29,18 @@ class ExecutionPlanner:
         Initialize planner for specific workflow.
 
         Args:
-            workflow_type: Type of workflow (linkedin, indeed, naukri)
+            workflow_type: Type of workflow (linkedin, linkedin_easy_apply, indeed, naukri)
         """
-        self.workflow_type = workflow_type
+        # Map workflow_type variations to standard planner names
+        workflow_mapping = {
+            "linkedin": "linkedin",
+            "linkedin_easy_apply": "linkedin",
+            "indeed": "indeed",
+            "naukri": "naukri",
+            "generic": "generic",
+        }
+
+        self.workflow_type = workflow_mapping.get(workflow_type, "generic")
         self.plan_generators = {
             "linkedin": self._generate_linkedin_plan,
             "indeed": self._generate_indeed_plan,
@@ -112,6 +121,10 @@ class ExecutionPlanner:
         elif "review" in analysis.page_type:
             steps.extend(self._plan_review_steps(step_num))
 
+        # Fallback to generic plan if no steps generated
+        if len(steps) == 0:
+            steps = self._generate_generic_plan(analysis)
+
         return steps
 
     def _generate_indeed_plan(self, analysis: PageAnalysisResult) -> List[ExecutionPlanStep]:
@@ -128,6 +141,10 @@ class ExecutionPlanner:
         elif "review" in analysis.page_type:
             steps.extend(self._plan_review_steps(step_num))
 
+        # Fallback to generic plan if no steps generated
+        if len(steps) == 0:
+            steps = self._generate_generic_plan(analysis)
+
         return steps
 
     def _generate_naukri_plan(self, analysis: PageAnalysisResult) -> List[ExecutionPlanStep]:
@@ -143,6 +160,10 @@ class ExecutionPlanner:
             step_num += len(steps)
         elif "review" in analysis.page_type:
             steps.extend(self._plan_review_steps(step_num))
+
+        # Fallback to generic plan if no steps generated
+        if len(steps) == 0:
+            steps = self._generate_generic_plan(analysis)
 
         return steps
 

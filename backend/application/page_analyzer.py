@@ -100,12 +100,72 @@ class PageAnalyzer:
         return result
 
     def _detect_page_type(self, page_data: Dict[str, Any]) -> str:
-        """Detect page type from content."""
+        """Detect page type from content using platform-aware scoring."""
         content = str(page_data).lower()
+        platform = page_data.get("platform", "").lower()
+        form_types = set()
 
-        for page_type, keywords in self.page_type_patterns.items():
-            if all(keyword in content for keyword in keywords):
-                return page_type
+        # Extract detected form types from all forms
+        for form_data in page_data.get("forms", []):
+            form_type = self._detect_form_type(form_data)
+            if form_type != "unknown":
+                form_types.add(form_type)
+
+        # Platform-specific page type patterns
+        platform_patterns = {
+            "linkedin": ["linkedin_profile", "linkedin_questions", "linkedin_review"],
+            "indeed": ["indeed_profile", "indeed_questions", "indeed_review"],
+            "naukri": ["naukri_profile", "naukri_questions", "naukri_review"],
+        }
+
+        # Get patterns for this platform
+        target_patterns = {}
+        if platform in platform_patterns:
+            for page_type in platform_patterns[platform]:
+                if page_type in self.page_type_patterns:
+                    target_patterns[page_type] = self.page_type_patterns[page_type]
+        else:
+            # If platform unknown, use all patterns
+            target_patterns = self.page_type_patterns
+
+        # Score only target platform page types
+        scores = {}
+        threshold = 0.5
+        best_match = None
+        best_score = 0
+
+        for page_type, keywords in target_patterns.items():
+            matches = sum(1 for keyword in keywords if keyword in content)
+            score = matches / len(keywords) if keywords else 0
+            scores[page_type] = score
+
+            if score >= threshold and score > best_score:
+                best_score = score
+                best_match = page_type
+
+        # If we have a platform-specific match, use it
+        if best_match:
+            return best_match
+
+        # Platform-specific fallback using form type signals
+        platform_prefix = {
+            "linkedin": "linkedin",
+            "indeed": "indeed",
+            "naukri": "naukri",
+        }.get(platform, platform)
+
+        if "upload" in form_types:
+            return f"{platform_prefix}_profile"
+        if "questions" in form_types:
+            return f"{platform_prefix}_questions"
+        if "review" in form_types:
+            return f"{platform_prefix}_review"
+        if "profile" in form_types:
+            return f"{platform_prefix}_profile"
+
+        # Last resort: return platform-specific application page
+        if platform in ["linkedin", "indeed", "naukri"]:
+            return f"{platform}_application"
 
         return "unknown"
 
