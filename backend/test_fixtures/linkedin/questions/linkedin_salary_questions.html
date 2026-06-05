@@ -1,0 +1,48 @@
+<html>
+<head>
+    <title>LinkedIn Easy Apply - Salary Questions</title>
+</head>
+<body>
+    <div class="application-form">
+        <h2>Compensation Questions</h2>
+
+        <div class="question-group">
+            <label for="salary_expectation">What is your salary expectation (USD)?</label>
+            <input type="number" id="salary_expectation" name="salary_expectation" placeholder="e.g., 75000" required />
+        </div>
+
+        <div class="question-group">
+            <label for="salary_currency">Currency:</label>
+            <select id="salary_currency" name="salary_currency" required>
+                <option value="">Select...</option>
+                <option value="usd">USD</option>
+                <option value="eur">EUR</option>
+                <option value="gbp">GBP</option>
+                <option value="inr">INR</option>
+            </select>
+        </div>
+
+        <div class="question-group">
+            <label for="salary_period">Payment period:</label>
+            <select id="salary_period" name="salary_period" required>
+                <option value="">Select...</option>
+                <option value="annual">Annual</option>
+                <option value="monthly">Monthly</option>
+                <option value="hourly">Hourly</option>
+            </select>
+        </div>
+
+        <div class="question-group">
+            <label for="benefits">Which benefits are you interested in?</label>
+            <input type="checkbox" id="benefits_health" name="benefits" value="health_insurance" />
+            <label for="benefits_health" style="display: inline;">Health Insurance</label>
+            <input type="checkbox" id="benefits_401k" name="benefits" value="401k" />
+            <label for="benefits_401k" style="display: inline;">401(k)</label>
+            <input type="checkbox" id="benefits_pto" name="benefits" value="pto" />
+            <label for="benefits_pto" style="display: inline;">PTO</label>
+        </div>
+
+        <button type="submit">Continue</button>
+    </div>
+</body>
+</html>

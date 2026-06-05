@@ -1,0 +1,56 @@
+<html>
+<head>
+    <title>LinkedIn Easy Apply - Mixed Questions</title>
+</head>
+<body>
+    <div class="application-form">
+        <h2>Application Questions</h2>
+
+        <div class="question-group">
+            <label for="work_auth">Work Authorization:</label>
+            <select id="work_auth" name="work_authorization" required>
+                <option value="">Select...</option>
+                <option value="yes">Authorized</option>
+                <option value="no">Require Sponsorship</option>
+            </select>
+        </div>
+
+        <div class="question-group">
+            <label for="cover_letter">Cover Letter (optional):</label>
+            <textarea id="cover_letter" name="cover_letter" rows="4" placeholder="Tell us about yourself..."></textarea>
+        </div>
+
+        <div class="question-group">
+            <label for="experience">Years of Experience:</label>
+            <input type="text" id="experience" name="experience" placeholder="e.g., 5" />
+        </div>
+
+        <div class="question-group">
+            <label for="notice">Notice Period:</label>
+            <select id="notice" name="notice_period" required>
+                <option value="">Select...</option>
+                <option value="immediate">Immediate</option>
+                <option value="2weeks">2 weeks</option>
+                <option value="4weeks">4 weeks</option>
+            </select>
+        </div>
+
+        <div class="question-group">
+            <label>Remote Work Preference:</label>
+            <input type="radio" id="remote_yes" name="remote_work" value="yes" />
+            <label for="remote_yes" style="display: inline;">Fully Remote</label>
+            <input type="radio" id="remote_hybrid" name="remote_work" value="hybrid" />
+            <label for="remote_hybrid" style="display: inline;">Hybrid</label>
+            <input type="radio" id="remote_office" name="remote_work" value="office" />
+            <label for="remote_office" style="display: inline;">On-Site</label>
+        </div>
+
+        <div class="question-group">
+            <label for="salary">Salary Expectation (USD):</label>
+            <input type="number" id="salary" name="salary" placeholder="e.g., 75000" />
+        </div>
+
+        <button type="submit">Submit Application</button>
+    </div>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<html>
+<head>
+    <title>Security Analyst - LinkedIn Jobs</title>
+    <style>
+        * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .job-header { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .job-title { font-size: 28px; font-weight: bold; color: #0a66c2; margin: 0; }
+        .company { font-size: 18px; color: #666; margin: 10px 0; }
+        .meta { display: flex; gap: 20px; color: #666; font-size: 14px; margin-top: 15px; }
+        .buttons { display: flex; gap: 10px; margin-top: 20px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 24px; cursor: pointer; font-size: 16px; }
+        .btn-easy-apply { background: #0a66c2; color: white; }
+        .btn-easy-apply:hover { background: #054399; }
+        .description { background: white; padding: 20px; border-radius: 8px; line-height: 1.6; }
+        .description h3 { color: #0a66c2; }
+        .form { background: white; padding: 20px; border-radius: 8px; margin-top: 20px; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .notice { background: #dbeafe; border-left: 4px solid #0a66c2; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="notice">
+        <strong>Easy Apply:</strong> This is an Easy Apply position with additional questions.
+    </div>
+
+    <div class="job-header">
+        <h1 class="job-title">Security Analyst</h1>
+        <div class="company">Example Corp</div>
+        <div class="meta">
+            <span>📍 Bangalore, India</span>
+            <span>💼 Full-time</span>
+            <span>📊 Mid-Level</span>
+        </div>
+        <div class="buttons">
+            <button class="btn btn-easy-apply" onclick="handleEasyApply()">Easy Apply</button>
+        </div>
+    </div>
+
+    <div class="description">
+        <h3>About the job</h3>
+        <p>Example Corp is seeking a Security Analyst to join our growing team. You'll be responsible for protecting our systems and data.</p>
+
+        <h3>Responsibilities</h3>
+        <ul>
+            <li>Monitor and analyze security events</li>
+            <li>Implement security best practices</li>
+            <li>Conduct security assessments</li>
+            <li>Respond to incidents</li>
+        </ul>
+
+        <h3>Requirements</h3>
+        <ul>
+            <li>Bachelor's degree in Computer Science or related field</li>
+            <li>3+ years of security experience</li>
+            <li>Knowledge of security tools and technologies</li>
+            <li>Strong communication skills</li>
+        </ul>
+
+        <h3>Additional Questions</h3>
+        <p>This position has additional screening questions as part of the application process.</p>
+    </div>
+
+    <div class="form">
+        <h3>Application Form</h3>
+
+        <div class="form-group">
+            <label for="work_auth">Are you authorized to work in India?</label>
+            <select id="work_auth" name="work_authorization" required>
+                <option value="">Select...</option>
+                <option value="yes">Yes, I am authorized</option>
+                <option value="no">No, I require sponsorship</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="sponsorship">Will you require visa sponsorship?</label>
+            <select id="sponsorship" name="sponsorship" required>
+                <option value="">Select...</option>
+                <option value="yes">Yes, I will require sponsorship</option>
+                <option value="no">No, I don't require sponsorship</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="experience">Years of security experience:</label>
+            <input type="number" id="experience" name="years_experience" min="0" required />
+        </div>
+
+        <div class="form-group">
+            <label for="notice">Notice period:</label>
+            <select id="notice" name="notice_period" required>
+                <option value="">Select...</option>
+                <option value="immediate">Immediate</option>
+                <option value="2weeks">2 weeks</option>
+                <option value="4weeks">4 weeks</option>
+                <option value="8weeks">8 weeks</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="relocation">Are you willing to relocate?</label>
+            <select id="relocation" name="relocation" required>
+                <option value="">Select...</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="resume">Resume:</label>
+            <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" required />
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-easy-apply" onclick="submitApplication()">Submit Application</button>
+        </div>
+    </div>
+
+    <script>
+        function handleEasyApply() {
+            alert('Easy Apply modal would open here');
+        }
+
+        function submitApplication() {
+            alert('Application submitted');
+        }
+    </script>
+</body>
+</html>
