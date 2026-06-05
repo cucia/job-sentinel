@@ -250,6 +250,36 @@ class PlaywrightBrowserElement(BrowserElement):
                 message=f"Upload failed: {str(e)}",
             )
 
+    async def select_radio(self, value: str) -> BrowserResult:
+        """Select a radio button option."""
+        try:
+            if not await self.locator.is_visible():
+                return BrowserResult(
+                    success=False,
+                    action="select_radio",
+                    selector=self.selector,
+                    message="Element not visible",
+                )
+
+            # Find and check the radio with matching value
+            radio_selector = f'{self.selector}[value="{value}"]'
+            await self.locator.page.locator(radio_selector).check()
+
+            return BrowserResult(
+                success=True,
+                action="select_radio",
+                selector=self.selector,
+                message=f"Selected radio option: {value}",
+                metadata={"value": value},
+            )
+        except Exception as e:
+            return BrowserResult(
+                success=False,
+                action="select_radio",
+                selector=self.selector,
+                message=f"Select radio failed: {str(e)}",
+            )
+
 
 class PlaywrightAdapter(BrowserAdapter):
     """Playwright implementation of BrowserAdapter."""

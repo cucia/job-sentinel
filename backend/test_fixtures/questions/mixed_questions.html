@@ -1,0 +1,77 @@
+<html>
+<head>
+    <title>Mixed Questions - Dynamic Question Engine Test</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 700px; margin: 40px auto; padding: 20px; }
+        h1 { color: #0066cc; }
+        .form-group { margin: 20px 0; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; }
+        input[type="text"], select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        textarea { resize: vertical; min-height: 80px; }
+        .checkbox-group label, .radio-group label { display: inline-block; margin-right: 20px; font-weight: normal; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #0052a3; }
+        .result { display: none; background: #d4edda; border: 1px solid #28a745; padding: 15px; margin-top: 20px; border-radius: 4px; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>Mixed Questions Test Fixture</h1>
+    <p>Tests dynamic detection with mixed question types.</p>
+
+    <form id="mixedForm">
+        <div class="form-group">
+            <label for="experience">Years of Experience:</label>
+            <select id="experience" name="experience">
+                <option value="">-- Select --</option>
+                <option value="0-2">0-2 years</option>
+                <option value="2-5">2-5 years</option>
+                <option value="5-10">5-10 years</option>
+                <option value="10+">10+ years</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Are you willing to relocate?</label>
+            <div class="radio-group">
+                <label><input type="radio" name="relocate" value="yes" /> Yes</label>
+                <label><input type="radio" name="relocate" value="no" /> No</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="notice_period">Notice Period:</label>
+            <select id="notice_period" name="notice_period">
+                <option value="">-- Select --</option>
+                <option value="immediate">Immediate</option>
+                <option value="2weeks">2 weeks</option>
+                <option value="1month">1 month</option>
+                <option value="2months">2 months</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="why_join">Why do you want to join our company?</label>
+            <textarea id="why_join" name="why_join" placeholder="Tell us why you're interested..."></textarea>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="agree_terms" name="agree_terms" /> I agree to terms</label>
+        </div>
+
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+
+    <div class="result" id="result">
+        <h3>✓ Application Submitted</h3>
+        <p>Your responses have been recorded.</p>
+    </div>
+
+    <script>
+        function submitForm() {
+            document.getElementById('result').style.display = 'block';
+            sessionStorage.setItem('mixed_form_submitted', 'true');
+        }
+    </script>
+</body>
+</html>

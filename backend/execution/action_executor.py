@@ -490,22 +490,38 @@ class ActionExecutor:
             )
 
         try:
-            # Find element
-            element = await self.adapter.find_element(step.selector)
-            if not element:
-                return ActionExecutionResult(
-                    success=False,
-                    action=str(step.action),
-                    step_number=step.step_number,
-                    message=f"Select element not found: {step.selector}",
-                    metadata={"selector": step.selector},
-                )
-
             # Get value to select
             value = step.expected_value or ""
 
-            # Use select_option() for <select> elements (not fill)
-            result = await element.select_option(value)
+            # Check if this is a radio group selector
+            if 'input[type="radio"]' in step.selector:
+                # For radio buttons, find specific radio by value
+                radio_selector = f'{step.selector}[value="{value}"]'
+                element = await self.adapter.find_element(radio_selector)
+                if not element:
+                    return ActionExecutionResult(
+                        success=False,
+                        action=str(step.action),
+                        step_number=step.step_number,
+                        message=f"Radio option not found: {radio_selector}",
+                        metadata={"selector": radio_selector, "value": value},
+                    )
+                # Use check() for radio buttons
+                result = await element.check()
+            else:
+                # Find element for regular select/input
+                element = await self.adapter.find_element(step.selector)
+                if not element:
+                    return ActionExecutionResult(
+                        success=False,
+                        action=str(step.action),
+                        step_number=step.step_number,
+                        message=f"Select element not found: {step.selector}",
+                        metadata={"selector": step.selector},
+                    )
+
+                # Use select_option() for <select> elements (not fill)
+                result = await element.select_option(value)
 
             if result.success:
                 return ActionExecutionResult(

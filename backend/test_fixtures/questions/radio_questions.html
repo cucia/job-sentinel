@@ -1,0 +1,94 @@
+<html>
+<head>
+    <title>Radio Questions - Dynamic Question Engine Test</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 700px; margin: 40px auto; padding: 20px; }
+        h1 { color: #0066cc; }
+        fieldset { border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        legend { font-weight: bold; color: #0066cc; }
+        .form-group { margin: 15px 0; }
+        label { display: block; margin: 8px 0; }
+        input[type="radio"], input[type="checkbox"] { margin-right: 8px; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0052a3; }
+        .result { display: none; background: #d4edda; border: 1px solid #28a745; padding: 15px; margin-top: 20px; border-radius: 4px; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>Radio Questions Test Fixture</h1>
+    <p>Tests dynamic detection and answering of radio button questions.</p>
+
+    <form id="radioForm">
+        <fieldset>
+            <legend>Are you legally authorized to work in this country?</legend>
+            <label>
+                <input type="radio" name="work_auth" value="yes" id="auth_yes" />
+                Yes, I am authorized
+            </label>
+            <label>
+                <input type="radio" name="work_auth" value="no" id="auth_no" />
+                No, I am not authorized
+            </label>
+            <label>
+                <input type="radio" name="work_auth" value="sponsorship" id="auth_sponsor" />
+                I require visa sponsorship
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Will you require visa sponsorship?</legend>
+            <label>
+                <input type="radio" name="sponsorship" value="yes" id="sponsor_yes" />
+                Yes, I require sponsorship
+            </label>
+            <label>
+                <input type="radio" name="sponsorship" value="no" id="sponsor_no" />
+                No, I don't require sponsorship
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Are you willing to relocate?</legend>
+            <label>
+                <input type="radio" name="relocate" value="yes" id="relocate_yes" />
+                Yes, willing to relocate
+            </label>
+            <label>
+                <input type="radio" name="relocate" value="no" id="relocate_no" />
+                No, cannot relocate
+            </label>
+        </fieldset>
+
+        <fieldset>
+            <legend>Do you prefer remote work?</legend>
+            <label>
+                <input type="radio" name="remote" value="yes" id="remote_yes" />
+                Yes, prefer remote
+            </label>
+            <label>
+                <input type="radio" name="remote" value="no" id="remote_no" />
+                No, prefer office
+            </label>
+            <label>
+                <input type="radio" name="remote" value="flexible" id="remote_flex" />
+                Either is fine
+            </label>
+        </fieldset>
+
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+
+    <div class="result" id="result">
+        <h3>✓ Form Submitted Successfully</h3>
+        <p>All radio selections recorded.</p>
+    </div>
+
+    <script>
+        function submitForm() {
+            document.getElementById('result').style.display = 'block';
+            sessionStorage.setItem('radio_form_submitted', 'true');
+        }
+    </script>
+</body>
+</html>

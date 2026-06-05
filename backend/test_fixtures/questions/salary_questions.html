@@ -1,0 +1,67 @@
+<html>
+<head>
+    <title>Salary Questions - Dynamic Question Engine Test</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 700px; margin: 40px auto; padding: 20px; }
+        h1 { color: #0066cc; }
+        .form-group { margin: 20px 0; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; }
+        input[type="text"], select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #0052a3; }
+        .result { display: none; background: #d4edda; border: 1px solid #28a745; padding: 15px; margin-top: 20px; border-radius: 4px; color: #155724; }
+    </style>
+</head>
+<body>
+    <h1>Salary Questions Test Fixture</h1>
+    <p>Tests dynamic detection and answering of salary-related questions.</p>
+
+    <form id="salaryForm">
+        <div class="form-group">
+            <label for="current_salary">What is your current salary (optional)?</label>
+            <input type="text" id="current_salary" name="current_salary" placeholder="e.g., 60000" />
+        </div>
+
+        <div class="form-group">
+            <label for="expected_salary">What is your expected salary?</label>
+            <input type="text" id="expected_salary" name="expected_salary" placeholder="e.g., 75000" />
+        </div>
+
+        <div class="form-group">
+            <label for="salary_currency">Currency:</label>
+            <select id="salary_currency" name="salary_currency">
+                <option value="">-- Select --</option>
+                <option value="usd">USD</option>
+                <option value="eur">EUR</option>
+                <option value="gbp">GBP</option>
+                <option value="inr">INR</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="salary_period">Salary Period:</label>
+            <select id="salary_period" name="salary_period">
+                <option value="">-- Select --</option>
+                <option value="annual">Annual</option>
+                <option value="monthly">Monthly</option>
+                <option value="hourly">Hourly</option>
+            </select>
+        </div>
+
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+
+    <div class="result" id="result">
+        <h3>✓ Salary Information Submitted</h3>
+        <p>Your compensation preferences have been recorded.</p>
+    </div>
+
+    <script>
+        function submitForm() {
+            document.getElementById('result').style.display = 'block';
+            sessionStorage.setItem('salary_form_submitted', 'true');
+        }
+    </script>
+</body>
+</html>
