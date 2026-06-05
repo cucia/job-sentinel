@@ -1,0 +1,53 @@
+<html>
+<head>
+    <title>Renamed Input - Recovery Test</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 600px; margin: 50px auto; padding: 20px; }
+        h1 { color: #0066cc; }
+        form { border: 1px solid #ddd; padding: 20px; border-radius: 5px; background: #f9f9f9; }
+        .form-group { margin: 15px 0; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #0052a3; }
+        .info { background: #e8f0ff; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h1>Renamed Input - Recovery Test</h1>
+    <p>Tests label-based recovery when input ID has changed.</p>
+
+    <div class="info">
+        <strong>Note:</strong> The email input has ID "email_field_v2" (renamed from "email").
+        Recovery should find it by the associated label "Email Address".
+    </div>
+
+    <form id="labelForm">
+        <div class="form-group">
+            <label for="email_field_v2">Email Address:</label>
+            <!-- ID is different but label association is intact -->
+            <input type="email" id="email_field_v2" name="email" placeholder="Enter your email" />
+        </div>
+
+        <div class="form-group">
+            <label for="phone_field_v2">Phone Number:</label>
+            <input type="tel" id="phone_field_v2" name="phone" placeholder="Enter phone" />
+        </div>
+
+        <button type="button" id="submitLabel" onclick="handleSubmit()">Submit</button>
+    </form>
+
+    <script>
+        function handleSubmit() {
+            const email = document.getElementById('email_field_v2').value;
+            if (email) {
+                sessionStorage.setItem('label_recovery_success', 'true');
+                alert('Form submitted!');
+            } else {
+                alert('Please enter email');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<html>
+<head>
+    <title>Missing Selector - Recovery Test</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 600px; margin: 50px auto; padding: 20px; }
+        h1 { color: #0066cc; }
+        form { border: 1px solid #ddd; padding: 20px; border-radius: 5px; background: #f9f9f9; }
+        .form-group { margin: 15px 0; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #0052a3; }
+        .info { background: #e8f0ff; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <h1>Missing Selector Test</h1>
+    <p>This fixture tests recovery when selectors change or are missing.</p>
+
+    <div class="info">
+        <strong>Note:</strong> The submit button doesn't have the expected ID.
+        Recovery engine should find it by alternative methods.
+    </div>
+
+    <form id="testForm">
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="text" id="email" name="email" placeholder="Enter email" />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" placeholder="Enter password" />
+        </div>
+
+        <!-- Note: ID is different from what recovery test expects -->
+        <button type="button" id="submitBtn" onclick="handleSubmit()">Submit Form</button>
+    </form>
+
+    <script>
+        function handleSubmit() {
+            const email = document.getElementById('email').value;
+            if (email) {
+                sessionStorage.setItem('recovery_test_success', 'true');
+                alert('Form submitted successfully!');
+            }
+        }
+    </script>
+</body>
+</html>
