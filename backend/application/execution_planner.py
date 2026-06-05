@@ -181,6 +181,13 @@ class ExecutionPlanner:
                 required_fields=analysis.upload_fields,
                 estimated_duration_seconds=30,
                 validation_checks=["file_uploaded", "file_valid"],
+                field_name="resume",
+                value_source="profile.resume_path",
+                required=True,
+                metadata={
+                    "upload_fields": analysis.upload_fields,
+                    "field_type": "file",
+                },
             ))
             step_num += 1
 
@@ -193,6 +200,13 @@ class ExecutionPlanner:
                 required_fields=analysis.visible_fields,
                 estimated_duration_seconds=60,
                 validation_checks=["required_fields_filled"],
+                field_name="profile",
+                value_source="user_profile",
+                required=True,
+                metadata={
+                    "visible_fields": analysis.visible_fields,
+                    "field_count": len(analysis.visible_fields),
+                },
             ))
             step_num += 1
 
@@ -204,6 +218,14 @@ class ExecutionPlanner:
                 description="Submit application",
                 estimated_duration_seconds=10,
                 validation_checks=["submission_successful"],
+                selector="button[type='submit'], input[type='submit'], [data-action='submit']",
+                field_name="submit_button",
+                value_source="static",
+                required=True,
+                metadata={
+                    "button_type": "submit",
+                    "next_action": analysis.next_action_hint,
+                },
             ))
         elif "continue" in str(analysis.navigation_actions):
             steps.append(ExecutionPlanStep(
@@ -212,6 +234,13 @@ class ExecutionPlanner:
                 description="Continue to next page",
                 estimated_duration_seconds=5,
                 validation_checks=["page_loaded"],
+                selector="button[type='button'], a[data-action='continue'], .continue-button",
+                field_name="continue_button",
+                value_source="static",
+                required=True,
+                metadata={
+                    "navigation_actions": str(analysis.navigation_actions),
+                },
             ))
 
         return steps
@@ -225,6 +254,14 @@ class ExecutionPlanner:
                 description="Fill LinkedIn profile information",
                 estimated_duration_seconds=90,
                 validation_checks=["all_fields_filled", "profile_complete"],
+                field_name="profile",
+                value_source="user_profile",
+                required=True,
+                metadata={
+                    "platform": "linkedin",
+                    "form_type": "profile",
+                    "fields": ["firstName", "lastName", "headline", "location"],
+                },
             ),
         ]
 
@@ -237,6 +274,14 @@ class ExecutionPlanner:
                 description="Upload or select resume from Indeed database",
                 estimated_duration_seconds=30,
                 validation_checks=["resume_selected"],
+                field_name="resume",
+                value_source="profile.resume_path",
+                required=True,
+                metadata={
+                    "platform": "indeed",
+                    "form_type": "upload",
+                    "allow_selection": True,
+                },
             ),
             ExecutionPlanStep(
                 step_number=start_step + 1,
@@ -244,6 +289,14 @@ class ExecutionPlanner:
                 description="Fill profile information",
                 estimated_duration_seconds=60,
                 validation_checks=["required_fields_filled"],
+                field_name="profile",
+                value_source="user_profile",
+                required=True,
+                metadata={
+                    "platform": "indeed",
+                    "form_type": "profile",
+                    "fields": ["email", "phone", "location"],
+                },
             ),
         ]
 
@@ -256,6 +309,14 @@ class ExecutionPlanner:
                 description="Fill Naukri profile information",
                 estimated_duration_seconds=120,
                 validation_checks=["profile_updated"],
+                field_name="profile",
+                value_source="user_profile",
+                required=True,
+                metadata={
+                    "platform": "naukri",
+                    "form_type": "profile",
+                    "fields": ["email", "phone", "experience", "skills"],
+                },
             ),
         ]
 
@@ -268,6 +329,13 @@ class ExecutionPlanner:
                 description="Answer application questions",
                 estimated_duration_seconds=120,
                 validation_checks=["all_questions_answered", "answers_valid"],
+                field_name="questions",
+                value_source="ai_generated",
+                required=True,
+                metadata={
+                    "form_type": "questions",
+                    "requires_ai": True,
+                },
             ),
         ]
 
@@ -280,6 +348,13 @@ class ExecutionPlanner:
                 description="Review application details",
                 estimated_duration_seconds=30,
                 validation_checks=["application_reviewed"],
+                field_name="review",
+                value_source="static",
+                required=False,
+                metadata={
+                    "form_type": "review",
+                    "user_action": "manual_review",
+                },
             ),
             ExecutionPlanStep(
                 step_number=start_step + 1,
@@ -287,6 +362,14 @@ class ExecutionPlanner:
                 description="Submit application",
                 estimated_duration_seconds=10,
                 validation_checks=["submission_successful"],
+                selector="button[type='submit'], input[type='submit'], [data-action='submit']",
+                field_name="submit_button",
+                value_source="static",
+                required=True,
+                metadata={
+                    "form_type": "submit",
+                    "button_type": "submit",
+                },
             ),
             ExecutionPlanStep(
                 step_number=start_step + 2,
@@ -294,6 +377,13 @@ class ExecutionPlanner:
                 description="Verify application submitted successfully",
                 estimated_duration_seconds=10,
                 validation_checks=["confirmation_visible"],
+                field_name="confirmation",
+                value_source="static",
+                required=False,
+                metadata={
+                    "form_type": "confirmation",
+                    "selector_patterns": ["confirmation", "success", "submitted"],
+                },
             ),
         ]
 

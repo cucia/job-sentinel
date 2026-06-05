@@ -94,6 +94,25 @@ class ExecutionPlanStep:
     fallback_action: Optional[ExecutionAction] = None
     validation_checks: list[str] = field(default_factory=list)
 
+    # Execution metadata (Phase 6 additions - optional for backward compatibility)
+    selector: Optional[str] = None
+    """CSS selector for element interaction (click, fill, etc)"""
+
+    field_name: Optional[str] = None
+    """Form field name or element identifier"""
+
+    value_source: Optional[str] = None
+    """Where to get the value: 'user', 'profile', 'static', 'file_path', etc"""
+
+    expected_value: Optional[str] = None
+    """Expected or static value to use"""
+
+    required: bool = False
+    """Whether this step is required (can't be skipped)"""
+
+    metadata: dict[str, Any] = field(default_factory=dict)
+    """Additional execution metadata"""
+
 
 @dataclass
 class ExecutionPlan:
