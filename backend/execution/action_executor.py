@@ -189,8 +189,20 @@ class ActionExecutor:
             elif step.value_source == "profile":
                 value = await self._resolve_value_from_metadata(step, session)
 
-            # Fill element (await async operation)
-            result = await element.fill(value)
+            # Detect element type and handle accordingly
+            element_type = await element.get_attribute("type")
+
+            if element_type and element_type.lower() == "checkbox":
+                # Handle checkbox: check or uncheck based on value
+                should_check = value.lower() in ("true", "1", "yes", "on", "checked")
+
+                if should_check:
+                    result = await element.check()
+                else:
+                    result = await element.uncheck()
+            else:
+                # Handle regular input/textarea (await async operation)
+                result = await element.fill(value)
 
             if result.success:
                 return ActionExecutionResult(
@@ -492,8 +504,8 @@ class ActionExecutor:
             # Get value to select
             value = step.expected_value or ""
 
-            # Fill (await async operation - in real Playwright, this would be selectOption)
-            result = await element.fill(value)
+            # Use select_option() for <select> elements (not fill)
+            result = await element.select_option(value)
 
             if result.success:
                 return ActionExecutionResult(

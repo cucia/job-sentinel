@@ -1,0 +1,68 @@
+<html>
+<head>
+    <title>Resume - Multi-Page Workflow</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 600px; margin: 50px auto; padding: 20px; }
+        .page-title { color: #0066cc; margin-bottom: 5px; }
+        .page-number { color: #999; font-size: 14px; margin-bottom: 20px; }
+        form { border: 1px solid #ddd; padding: 20px; border-radius: 5px; background: #f9f9f9; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="file"] { border: 1px solid #ccc; padding: 8px; border-radius: 4px; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px; }
+        button:hover { background: #0052a3; }
+        .form-progress { background: #e8f0ff; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+        .upload-info { background: #fffacd; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1 class="page-title">Job Application Form</h1>
+    <p class="page-number">Page 3 of 5: Resume Upload</p>
+
+    <div class="form-progress">
+        <strong>Progress:</strong> <span id="progress">3/5</span>
+        <div style="width: 100%; height: 20px; background: #ddd; border-radius: 4px; margin-top: 5px;">
+            <div style="width: 60%; height: 100%; background: #0066cc; border-radius: 4px;"></div>
+        </div>
+    </div>
+
+    <form id="page3Form">
+        <div class="upload-info">
+            <strong>Note:</strong> In this demo, we simulate file upload without requiring an actual file.
+        </div>
+
+        <div class="form-group">
+            <label for="resume">Resume (PDF, DOC, or DOCX)</label>
+            <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" />
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="resumeConfirm" name="resumeConfirm" />
+                Confirm resume is ready for review
+            </label>
+        </div>
+
+        <button type="button" onclick="goToPage2()">Back</button>
+        <button type="button" id="continuePage3" onclick="goToPage4()">Continue to Page 4</button>
+    </form>
+
+    <script>
+        function goToPage2() {
+            window.location.href = 'page2_questions.html';
+        }
+
+        function goToPage4() {
+            const fileInput = document.getElementById('resume');
+            const confirmed = document.getElementById('resumeConfirm').checked;
+
+            // In test, we allow either file or checkbox
+            if (fileInput.files.length > 0 || confirmed) {
+                sessionStorage.setItem('workflow_resumeUploaded', 'true');
+                window.location.href = 'page4_review.html';
+            }
+        }
+    </script>
+</body>
+</html>

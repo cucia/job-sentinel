@@ -1,0 +1,74 @@
+<html>
+<head>
+    <title>Questions - Multi-Page Workflow</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 600px; margin: 50px auto; padding: 20px; }
+        .page-title { color: #0066cc; margin-bottom: 5px; }
+        .page-number { color: #999; font-size: 14px; margin-bottom: 20px; }
+        form { border: 1px solid #ddd; padding: 20px; border-radius: 5px; background: #f9f9f9; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input[type="text"], input[type="email"], select, textarea {
+            width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;
+        }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px; }
+        button:hover { background: #0052a3; }
+        .form-progress { background: #e8f0ff; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1 class="page-title">Job Application Form</h1>
+    <p class="page-number">Page 2 of 5: Questions</p>
+
+    <div class="form-progress">
+        <strong>Progress:</strong> <span id="progress">2/5</span>
+        <div style="width: 100%; height: 20px; background: #ddd; border-radius: 4px; margin-top: 5px;">
+            <div style="width: 40%; height: 100%; background: #0066cc; border-radius: 4px;"></div>
+        </div>
+    </div>
+
+    <form id="page2Form">
+        <div class="form-group">
+            <label for="authorization">Work Authorization</label>
+            <select id="authorization" name="authorization" required>
+                <option value="">-- Select --</option>
+                <option value="us_citizen">US Citizen</option>
+                <option value="green_card">Green Card</option>
+                <option value="visa_sponsorship">Requires Visa Sponsorship</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="experience">Years of Experience</label>
+            <select id="experience" name="experience" required>
+                <option value="">-- Select --</option>
+                <option value="0-2">0-2 years</option>
+                <option value="2-5">2-5 years</option>
+                <option value="5-10">5-10 years</option>
+                <option value="10+">10+ years</option>
+            </select>
+        </div>
+
+        <button type="button" onclick="goToPage1()">Back</button>
+        <button type="button" id="continuePage2" onclick="goToPage3()">Continue to Page 3</button>
+    </form>
+
+    <script>
+        function goToPage1() {
+            window.location.href = 'page1_personal_info.html';
+        }
+
+        function goToPage3() {
+            const auth = document.getElementById('authorization').value;
+            const exp = document.getElementById('experience').value;
+
+            if (auth && exp) {
+                sessionStorage.setItem('workflow_authorization', auth);
+                sessionStorage.setItem('workflow_experience', exp);
+                window.location.href = 'page3_resume.html';
+            }
+        }
+    </script>
+</body>
+</html>

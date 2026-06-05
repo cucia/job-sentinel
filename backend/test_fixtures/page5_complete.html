@@ -1,0 +1,108 @@
+<html>
+<head>
+    <title>Application Complete - Multi-Page Workflow</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 600px; margin: 50px auto; padding: 20px; }
+        .success-container {
+            border: 2px solid #28a745;
+            padding: 30px;
+            border-radius: 8px;
+            background: #d4edda;
+            text-align: center;
+        }
+        .success-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        h1 { color: #155724; margin-bottom: 10px; }
+        .confirmation-number {
+            font-size: 18px;
+            color: #155724;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #28a745;
+        }
+        .details-box {
+            background: white;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 20px;
+            text-align: left;
+        }
+        .detail-line {
+            border-bottom: 1px solid #ddd;
+            padding: 10px 0;
+        }
+        .detail-label { font-weight: bold; color: #0066cc; }
+        .detail-value { color: #333; margin-left: 10px; }
+        button {
+            background: #0066cc;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        button:hover { background: #0052a3; }
+    </style>
+</head>
+<body>
+    <div class="success-container">
+        <div class="success-icon">✓</div>
+        <h1>Application Submitted Successfully!</h1>
+        <p>Your application has been received and will be reviewed shortly.</p>
+
+        <div class="confirmation-number" id="confirmationNumber">
+            Confirmation #: APP-20260605-00001
+        </div>
+
+        <div class="details-box">
+            <div class="detail-line">
+                <span class="detail-label">Name:</span>
+                <span class="detail-value" id="detailName">Loading...</span>
+            </div>
+            <div class="detail-line">
+                <span class="detail-label">Email:</span>
+                <span class="detail-value" id="detailEmail">Loading...</span>
+            </div>
+            <div class="detail-line">
+                <span class="detail-label">Submitted At:</span>
+                <span class="detail-value" id="detailTime">Loading...</span>
+            </div>
+            <div class="detail-line">
+                <span class="detail-label">Application Status:</span>
+                <span class="detail-value" id="detailStatus">Under Review</span>
+            </div>
+        </div>
+
+        <button onclick="startOver()">Start New Application</button>
+    </div>
+
+    <script>
+        window.addEventListener('load', function() {
+            const firstName = sessionStorage.getItem('workflow_firstName') || 'Applicant';
+            const lastName = sessionStorage.getItem('workflow_lastName') || '';
+            const email = sessionStorage.getItem('workflow_email') || 'user@example.com';
+            const now = new Date().toLocaleString();
+
+            document.getElementById('detailName').textContent = `${firstName} ${lastName}`.trim();
+            document.getElementById('detailEmail').textContent = email;
+            document.getElementById('detailTime').textContent = now;
+
+            // Mark as successfully completed
+            sessionStorage.setItem('workflow_completed', 'true');
+        });
+
+        function startOver() {
+            sessionStorage.clear();
+            window.location.href = 'page1_personal_info.html';
+        }
+    </script>
+</body>
+</html>

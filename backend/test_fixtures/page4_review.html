@@ -1,0 +1,98 @@
+<html>
+<head>
+    <title>Review - Multi-Page Workflow</title>
+    <style>
+        * { font-family: Arial, sans-serif; }
+        body { max-width: 600px; margin: 50px auto; padding: 20px; }
+        .page-title { color: #0066cc; margin-bottom: 5px; }
+        .page-number { color: #999; font-size: 14px; margin-bottom: 20px; }
+        .review-box { border: 1px solid #ddd; padding: 15px; border-radius: 5px; background: #f9f9f9; margin-bottom: 20px; }
+        .review-section { margin-bottom: 15px; }
+        .review-label { font-weight: bold; color: #0066cc; }
+        .review-value { margin-left: 20px; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        button { background: #0066cc; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-right: 10px; }
+        button:hover { background: #0052a3; }
+        .form-progress { background: #e8f0ff; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+        .agreement { background: #fff0f0; padding: 10px; border: 1px solid #ffcccc; border-radius: 4px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <h1 class="page-title">Job Application Form</h1>
+    <p class="page-number">Page 4 of 5: Review & Submit</p>
+
+    <div class="form-progress">
+        <strong>Progress:</strong> <span id="progress">4/5</span>
+        <div style="width: 100%; height: 20px; background: #ddd; border-radius: 4px; margin-top: 5px;">
+            <div style="width: 80%; height: 100%; background: #0066cc; border-radius: 4px;"></div>
+        </div>
+    </div>
+
+    <div class="review-box" id="reviewContent">
+        <div class="review-section">
+            <div class="review-label">Personal Information</div>
+            <div class="review-value">
+                <div id="reviewName">Name: Loading...</div>
+                <div id="reviewEmail">Email: Loading...</div>
+            </div>
+        </div>
+
+        <div class="review-section">
+            <div class="review-label">Qualifications</div>
+            <div class="review-value">
+                <div id="reviewAuth">Work Authorization: Loading...</div>
+                <div id="reviewExp">Experience: Loading...</div>
+            </div>
+        </div>
+
+        <div class="review-section">
+            <div class="review-label">Application Status</div>
+            <div class="review-value">
+                <div id="reviewResume">Resume: Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <form id="page4Form">
+        <div class="agreement">
+            <label>
+                <input type="checkbox" id="agreeTerms" name="agreeTerms" required />
+                I agree to the terms and conditions
+            </label>
+        </div>
+
+        <button type="button" onclick="goToPage3()">Back</button>
+        <button type="button" id="submitApplication" onclick="goToPage5()">Submit Application</button>
+    </form>
+
+    <script>
+        window.addEventListener('load', function() {
+            // Retrieve and display stored data
+            const firstName = sessionStorage.getItem('workflow_firstName') || 'Not provided';
+            const lastName = sessionStorage.getItem('workflow_lastName') || 'Not provided';
+            const email = sessionStorage.getItem('workflow_email') || 'Not provided';
+            const auth = sessionStorage.getItem('workflow_authorization') || 'Not selected';
+            const exp = sessionStorage.getItem('workflow_experience') || 'Not selected';
+            const resume = sessionStorage.getItem('workflow_resumeUploaded') === 'true' ? 'Uploaded' : 'Not uploaded';
+
+            document.getElementById('reviewName').textContent = `Name: ${firstName} ${lastName}`;
+            document.getElementById('reviewEmail').textContent = `Email: ${email}`;
+            document.getElementById('reviewAuth').textContent = `Work Authorization: ${auth}`;
+            document.getElementById('reviewExp').textContent = `Experience: ${exp}`;
+            document.getElementById('reviewResume').textContent = `Resume: ${resume}`;
+        });
+
+        function goToPage3() {
+            window.location.href = 'page3_resume.html';
+        }
+
+        function goToPage5() {
+            const agreed = document.getElementById('agreeTerms').checked;
+            if (agreed) {
+                sessionStorage.setItem('workflow_submitted', 'true');
+                window.location.href = 'page5_complete.html';
+            }
+        }
+    </script>
+</body>
+</html>

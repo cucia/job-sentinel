@@ -122,6 +122,92 @@ class PlaywrightBrowserElement(BrowserElement):
             except:
                 return ""
 
+    async def select_option(self, value: str) -> "BrowserResult":
+        """Select option in a <select> element."""
+        try:
+            # Check if element is visible
+            if not await self.locator.is_visible():
+                return BrowserResult(
+                    success=False,
+                    action="select_option",
+                    selector=self.selector,
+                    message="Element not visible",
+                )
+
+            # Use Playwright's select_option() for <select> elements
+            await self.locator.select_option(value)
+
+            return BrowserResult(
+                success=True,
+                action="select_option",
+                selector=self.selector,
+                message=f"Selected option: {value}",
+                metadata={"value": value},
+            )
+        except Exception as e:
+            return BrowserResult(
+                success=False,
+                action="select_option",
+                selector=self.selector,
+                message=f"Select failed: {str(e)}",
+            )
+
+    async def check(self) -> BrowserResult:
+        """Check a checkbox element."""
+        try:
+            if not await self.locator.is_visible():
+                return BrowserResult(
+                    success=False,
+                    action="check",
+                    selector=self.selector,
+                    message="Element not visible",
+                )
+
+            await self.locator.check()
+
+            return BrowserResult(
+                success=True,
+                action="check",
+                selector=self.selector,
+                message=f"Checked {self.selector}",
+                metadata={"checked": True},
+            )
+        except Exception as e:
+            return BrowserResult(
+                success=False,
+                action="check",
+                selector=self.selector,
+                message=f"Check failed: {str(e)}",
+            )
+
+    async def uncheck(self) -> BrowserResult:
+        """Uncheck a checkbox element."""
+        try:
+            if not await self.locator.is_visible():
+                return BrowserResult(
+                    success=False,
+                    action="uncheck",
+                    selector=self.selector,
+                    message="Element not visible",
+                )
+
+            await self.locator.uncheck()
+
+            return BrowserResult(
+                success=True,
+                action="uncheck",
+                selector=self.selector,
+                message=f"Unchecked {self.selector}",
+                metadata={"checked": False},
+            )
+        except Exception as e:
+            return BrowserResult(
+                success=False,
+                action="uncheck",
+                selector=self.selector,
+                message=f"Uncheck failed: {str(e)}",
+            )
+
 
 class PlaywrightAdapter(BrowserAdapter):
     """Playwright implementation of BrowserAdapter."""
