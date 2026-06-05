@@ -208,6 +208,48 @@ class PlaywrightBrowserElement(BrowserElement):
                 message=f"Uncheck failed: {str(e)}",
             )
 
+    async def upload_file(self, file_path: str) -> BrowserResult:
+        """Upload file to file input element."""
+        try:
+            import os
+
+            # Verify file exists
+            if not os.path.exists(file_path):
+                return BrowserResult(
+                    success=False,
+                    action="upload_file",
+                    selector=self.selector,
+                    message=f"File not found: {file_path}",
+                )
+
+            if not await self.locator.is_visible():
+                return BrowserResult(
+                    success=False,
+                    action="upload_file",
+                    selector=self.selector,
+                    message="Element not visible",
+                )
+
+            # Use Playwright's set_input_files() for file uploads
+            await self.locator.set_input_files(file_path)
+
+            logger.info(f"[PlaywrightAdapter] File uploaded: {file_path}")
+            return BrowserResult(
+                success=True,
+                action="upload_file",
+                selector=self.selector,
+                message=f"Uploaded file: {file_path}",
+                metadata={"file_path": file_path, "file_size": os.path.getsize(file_path)},
+            )
+        except Exception as e:
+            logger.error(f"[PlaywrightAdapter] File upload failed: {e}")
+            return BrowserResult(
+                success=False,
+                action="upload_file",
+                selector=self.selector,
+                message=f"Upload failed: {str(e)}",
+            )
+
 
 class PlaywrightAdapter(BrowserAdapter):
     """Playwright implementation of BrowserAdapter."""

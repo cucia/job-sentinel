@@ -93,6 +93,35 @@ class BrowserElement:
         """Get element attribute."""
         return self.attributes.get(name)
 
+    def upload_file(self, file_path: str) -> BrowserResult:
+        """
+        Upload file to element (mock implementation).
+
+        Args:
+            file_path: Path to file to upload
+
+        Returns:
+            BrowserResult indicating success or failure
+        """
+        if not self.visible:
+            return BrowserResult(
+                success=False,
+                action="upload_file",
+                selector=self.selector,
+                message="Element not visible",
+            )
+
+        # Store file path in metadata (simulating file upload)
+        self.attributes["file_path"] = file_path
+
+        return BrowserResult(
+            success=True,
+            action="upload_file",
+            selector=self.selector,
+            message=f"Uploaded file to {self.selector}",
+            metadata={"file_path": file_path},
+        )
+
     def __repr__(self) -> str:
         """String representation."""
         return f"BrowserElement(selector={self.selector}, text={self.text})"

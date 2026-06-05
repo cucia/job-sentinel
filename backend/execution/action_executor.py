@@ -349,8 +349,8 @@ class ActionExecutor:
                     metadata={"selector": step.selector},
                 )
 
-            # Fill with file path (await async operation)
-            result = await element.fill(file_path)
+            # Upload file (await async operation - use upload_file not fill)
+            result = await element.upload_file(file_path)
 
             if result.success:
                 return ActionExecutionResult(
