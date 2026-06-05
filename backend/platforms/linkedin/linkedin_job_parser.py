@@ -17,14 +17,16 @@ logger = logging.getLogger(__name__)
 class LinkedInJobParser:
     """Parses LinkedIn job page metadata."""
 
-    def __init__(self, adapter=None):
+    def __init__(self, adapter=None, workflow_classifier=None):
         """
         Initialize parser.
 
         Args:
             adapter: PlaywrightAdapter instance (optional)
+            workflow_classifier: LinkedInWorkflowClassifier instance (optional)
         """
         self.adapter = adapter
+        self.workflow_classifier = workflow_classifier
 
     async def parse(self, url: str, html: Optional[str] = None) -> LinkedInPageData:
         """
@@ -65,6 +67,13 @@ class LinkedInJobParser:
 
         # Determine page type
         page_data.page_type = self._determine_page_type(html)
+
+        # Classify workflow type using classifier if available
+        if self.workflow_classifier:
+            page_data.workflow_type = self.workflow_classifier.classify(page_data)
+            logger.info(f"[Parser] Classified workflow: {page_data.workflow_type}")
+        else:
+            logger.warning("[Parser] No workflow classifier provided, workflow_type will be UNKNOWN")
 
         return page_data
 

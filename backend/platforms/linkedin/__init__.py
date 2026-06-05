@@ -1,7 +1,7 @@
 """
 LinkedIn Platform Module
 
-LinkedIn-specific page understanding, parsing, and workflow classification.
+LinkedIn-specific page understanding, parsing, workflow classification, and plan generation.
 Integrates with existing Job Sentinel architecture.
 """
 
@@ -13,6 +13,7 @@ from backend.platforms.linkedin.linkedin_page_data import (
 from backend.platforms.linkedin.linkedin_detector import LinkedInDetector
 from backend.platforms.linkedin.linkedin_job_parser import LinkedInJobParser
 from backend.platforms.linkedin.linkedin_workflow_classifier import LinkedInWorkflowClassifier
+from backend.platforms.linkedin.linkedin_plan_generator import LinkedInPlanGenerator
 
 __all__ = [
     "LinkedInPageData",
@@ -21,4 +22,5 @@ __all__ = [
     "LinkedInDetector",
     "LinkedInJobParser",
     "LinkedInWorkflowClassifier",
+    "LinkedInPlanGenerator",
 ]

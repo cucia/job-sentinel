@@ -68,16 +68,19 @@ class LinkedInWorkflowClassifier:
             EASY_APPLY or MULTI_STEP_EASY_APPLY
         """
         # Heuristics to detect multi-step:
-        # - Page contains "step" or "question" keywords
-        # - Company is known to use multi-step
-        # - Page indicates additional questions
+        # - Job description contains "question" or "step" keywords
+        # - Indicates additional questions in workflow
+        # - Multi-step workflows typically have questions/additional steps
 
         if page_data.job_description:
             description_lower = page_data.job_description.lower()
+            logger.info(f"[Classifier] Checking job description for multi-step indicators")
             if "question" in description_lower or "step" in description_lower:
+                logger.info("[Classifier] Found multi-step indicators in job description")
                 return LinkedInWorkflowType.MULTI_STEP_EASY_APPLY
 
         # Default to single-step Easy Apply
+        logger.info("[Classifier] No multi-step indicators found, defaulting to single-step")
         return LinkedInWorkflowType.EASY_APPLY
 
     def get_workflow_characteristics(
