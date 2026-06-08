@@ -33,7 +33,7 @@ class BrowserElement:
         self.attributes = attributes or {}
         self.visible = visible
 
-    def click(self) -> BrowserResult:
+    async def click(self) -> BrowserResult:
         """
         Click the element (mock implementation).
 
@@ -56,7 +56,7 @@ class BrowserElement:
             metadata={"text": self.text},
         )
 
-    def fill(self, value: str) -> BrowserResult:
+    async def fill(self, value: str) -> BrowserResult:
         """
         Fill the element with value (mock implementation).
 
@@ -85,15 +85,94 @@ class BrowserElement:
             metadata={"value": value},
         )
 
-    def get_text(self) -> str:
+    async def get_text(self) -> str:
         """Get element text."""
         return self.text
 
-    def get_attribute(self, name: str) -> Optional[str]:
+    async def get_attribute(self, name: str) -> Optional[str]:
         """Get element attribute."""
         return self.attributes.get(name)
 
-    def upload_file(self, file_path: str) -> BrowserResult:
+    async def input_value(self) -> str:
+        """Get current input element value."""
+        return self.attributes.get("value", "")
+
+    async def select_option(self, value: str) -> BrowserResult:
+        """Select option in a <select> element (mock implementation)."""
+        if not self.visible:
+            return BrowserResult(
+                success=False,
+                action="select_option",
+                selector=self.selector,
+                message="Element not visible",
+            )
+
+        self.attributes["value"] = value
+        return BrowserResult(
+            success=True,
+            action="select_option",
+            selector=self.selector,
+            message=f"Selected option: {value}",
+            metadata={"value": value},
+        )
+
+    async def check(self) -> BrowserResult:
+        """Check a checkbox (mock implementation)."""
+        if not self.visible:
+            return BrowserResult(
+                success=False,
+                action="check",
+                selector=self.selector,
+                message="Element not visible",
+            )
+
+        self.attributes["checked"] = "true"
+        return BrowserResult(
+            success=True,
+            action="check",
+            selector=self.selector,
+            message=f"Checked {self.selector}",
+        )
+
+    async def uncheck(self) -> BrowserResult:
+        """Uncheck a checkbox (mock implementation)."""
+        if not self.visible:
+            return BrowserResult(
+                success=False,
+                action="uncheck",
+                selector=self.selector,
+                message="Element not visible",
+            )
+
+        self.attributes.pop("checked", None)
+        return BrowserResult(
+            success=True,
+            action="uncheck",
+            selector=self.selector,
+            message=f"Unchecked {self.selector}",
+        )
+
+    async def select_radio(self, value: str) -> BrowserResult:
+        """Select a radio button (mock implementation)."""
+        if not self.visible:
+            return BrowserResult(
+                success=False,
+                action="select_radio",
+                selector=self.selector,
+                message="Element not visible",
+            )
+
+        self.attributes["value"] = value
+        self.attributes["checked"] = "true"
+        return BrowserResult(
+            success=True,
+            action="select_radio",
+            selector=self.selector,
+            message=f"Selected radio: {value}",
+            metadata={"value": value},
+        )
+
+    async def upload_file(self, file_path: str) -> BrowserResult:
         """
         Upload file to element (mock implementation).
 

@@ -62,9 +62,12 @@ class LinkedInPlanGenerator:
         Generate plan for single-step Easy Apply.
 
         Plan:
-        1. Fill profile information
-        2. Upload resume
-        3. Submit application
+        1. Upload resume
+        2. Submit application
+
+        Note: Dynamic Question Engine will augment this plan with:
+        - Form field filling steps
+        - Question answering steps
 
         Args:
             page_data: LinkedInPageData
@@ -77,15 +80,16 @@ class LinkedInPlanGenerator:
         steps = []
         step_num = 1
 
-        # Step 1: Fill profile information
+        # Step 1: Upload resume
         steps.append(
             ExecutionPlanStep(
                 step_number=step_num,
-                action=ExecutionAction.FILL_PROFILE,
-                description="Fill LinkedIn profile information for application",
-                selector=None,  # Will be detected during execution
-                field_name="profile",
-                value_source="linkedin_profile",
+                action=ExecutionAction.UPLOAD_RESUME,
+                description="Upload resume for application",
+                selector="input[type='file']",
+                field_name="resume",
+                value_source="profile.resume_path",
+                expected_value=None,
                 required=True,
                 metadata={
                     "platform": "linkedin",
@@ -96,267 +100,107 @@ class LinkedInPlanGenerator:
         )
         step_num += 1
 
-        # Step 2: Upload resume (if needed)
-        steps.append(
-            ExecutionPlanStep(
-                step_number=step_num,
-                action=ExecutionAction.UPLOAD_RESUME,
-                description="Upload resume for application",
-                selector="input[type='file']",  # Common resume upload selector
-                field_name="resume",
-                value_source="user_profile",
-                required=False,
-            )
-        )
-        step_num += 1
-
-        # Step 3: Submit application
+        # Step 2: Submit application
         steps.append(
             ExecutionPlanStep(
                 step_number=step_num,
                 action=ExecutionAction.SUBMIT_APPLICATION,
                 description="Submit application",
                 selector="button:has-text('Submit')",
-                field_name="submit",
-                value_source="static",
+                field_name="submit_button",
                 required=True,
+                metadata={
+                    "platform": "linkedin",
+                    "job_title": page_data.job_title,
+                    "company_name": page_data.company_name,
+                }
             )
         )
+        step_num += 1
 
-        # Create ExecutionPlan
         plan = ExecutionPlan(
-            plan_id=f"linkedin_easy_apply_{self._sanitize_id(page_data.company_name)}",
+            plan_id=f"linkedin_easy_apply_{page_data.company_name or 'unknown'}",
             workflow_type="linkedin_easy_apply",
-            job_id=f"linkedin_{self._sanitize_id(page_data.job_title)}",
-            task_id=f"linkedin_apply_{self._sanitize_id(page_data.company_name)}",
+            job_id=page_data.job_title or "unknown",
+            task_id="task_placeholder",
             steps=steps,
-            total_estimated_duration=300,  # 5 minutes estimated
+            total_estimated_duration=300,
             confidence_score=0.9,
         )
 
-        # Store metadata in first step for reference
-        if plan.steps:
-            plan.steps[0].metadata = {
-                "platform": "linkedin",
-                "workflow_type": "linkedin_easy_apply",
-                "job_title": page_data.job_title,
-                "company_name": page_data.company_name,
-                "location": page_data.location,
-                "employment_type": page_data.employment_type,
-                "experience_level": page_data.experience_level,
-                "easy_apply": page_data.easy_apply_available,
-            }
-
-        logger.info(f"[PlanGenerator] Generated Easy Apply plan with {len(steps)} steps")
+        logger.info(f"[PlanGenerator] Easy Apply plan generated: {len(steps)} steps")
         return plan
 
     def _generate_multi_step_plan(self, page_data: LinkedInPageData) -> ExecutionPlan:
         """
-        Generate plan for multi-step Easy Apply with questions.
+        Generate plan for multi-step Easy Apply.
 
         Plan:
-        1. Fill profile information
-        2. Continue
-        3. Detect and answer questions
-        4. Continue
-        5. Upload resume
-        6. Continue
-        7. Submit application
+        1. Upload resume
+        2. Submit application
+
+        Note: Dynamic Question Engine will augment this plan with:
+        - Form field filling steps
+        - Question answering steps
 
         Args:
             page_data: LinkedInPageData
 
         Returns:
-            ExecutionPlan with multi-step Easy Apply steps
+            ExecutionPlan with multi-step steps
         """
         logger.info("[PlanGenerator] Generating multi-step Easy Apply plan")
 
         steps = []
         step_num = 1
 
-        # Step 1: Fill profile information
-        steps.append(
-            ExecutionPlanStep(
-                step_number=step_num,
-                action=ExecutionAction.FILL_PROFILE,
-                description="Fill LinkedIn profile information",
-                selector=None,
-                field_name="profile",
-                value_source="linkedin_profile",
-                required=True,
-            )
-        )
-        step_num += 1
-
-        # Step 2: Continue to next step
-        steps.append(
-            ExecutionPlanStep(
-                step_number=step_num,
-                action=ExecutionAction.CONTINUE_TO_NEXT_STEP,
-                description="Continue to next step",
-                selector="button:has-text('Continue')",
-                field_name="continue",
-                value_source="static",
-                required=True,
-            )
-        )
-        step_num += 1
-
-        # Step 3: Answer application questions
-        steps.append(
-            ExecutionPlanStep(
-                step_number=step_num,
-                action=ExecutionAction.ANSWER_QUESTIONS,
-                description="Answer application questions",
-                selector=None,  # Will be detected during execution
-                field_name="questions",
-                value_source="detected",
-                required=False,
-            )
-        )
-        step_num += 1
-
-        # Step 4: Continue to next step
-        steps.append(
-            ExecutionPlanStep(
-                step_number=step_num,
-                action=ExecutionAction.CONTINUE_TO_NEXT_STEP,
-                description="Continue to next step",
-                selector="button:has-text('Continue')",
-                field_name="continue",
-                value_source="static",
-                required=True,
-            )
-        )
-        step_num += 1
-
-        # Step 5: Upload resume
+        # Step 1: Upload resume
         steps.append(
             ExecutionPlanStep(
                 step_number=step_num,
                 action=ExecutionAction.UPLOAD_RESUME,
-                description="Upload resume",
+                description="Upload resume for application",
                 selector="input[type='file']",
                 field_name="resume",
-                value_source="user_profile",
-                required=False,
-            )
-        )
-        step_num += 1
-
-        # Step 6: Continue to next step
-        steps.append(
-            ExecutionPlanStep(
-                step_number=step_num,
-                action=ExecutionAction.CONTINUE_TO_NEXT_STEP,
-                description="Continue to review and submit",
-                selector="button:has-text('Continue')",
-                field_name="continue",
-                value_source="static",
+                value_source="profile.resume_path",
+                expected_value=None,
                 required=True,
+                metadata={
+                    "platform": "linkedin",
+                    "job_title": page_data.job_title,
+                    "company_name": page_data.company_name,
+                }
             )
         )
         step_num += 1
 
-        # Step 7: Submit application
+        # Step 2: Submit application
         steps.append(
             ExecutionPlanStep(
                 step_number=step_num,
                 action=ExecutionAction.SUBMIT_APPLICATION,
                 description="Submit application",
                 selector="button:has-text('Submit')",
-                field_name="submit",
-                value_source="static",
+                field_name="submit_button",
                 required=True,
+                metadata={
+                    "platform": "linkedin",
+                    "job_title": page_data.job_title,
+                    "company_name": page_data.company_name,
+                }
             )
         )
+        step_num += 1
 
-        # Create ExecutionPlan
         plan = ExecutionPlan(
-            plan_id=f"linkedin_multi_step_{self._sanitize_id(page_data.company_name)}",
+            plan_id=f"linkedin_multi_step_{page_data.company_name or 'unknown'}",
             workflow_type="linkedin_multi_step_easy_apply",
-            job_id=f"linkedin_{self._sanitize_id(page_data.job_title)}",
-            task_id=f"linkedin_apply_{self._sanitize_id(page_data.company_name)}",
+            job_id=page_data.job_title or "unknown",
+            task_id="task_placeholder",
             steps=steps,
-            total_estimated_duration=600,  # 10 minutes estimated
+            total_estimated_duration=600,
             confidence_score=0.85,
         )
 
-        # Store metadata in first step for reference
-        if plan.steps:
-            plan.steps[0].metadata = {
-                "platform": "linkedin",
-                "workflow_type": "linkedin_multi_step_easy_apply",
-                "job_title": page_data.job_title,
-                "company_name": page_data.company_name,
-                "location": page_data.location,
-                "employment_type": page_data.employment_type,
-                "experience_level": page_data.experience_level,
-                "easy_apply": page_data.easy_apply_available,
-                "multi_step": True,
-            }
-
-        logger.info(f"[PlanGenerator] Generated multi-step plan with {len(steps)} steps")
+        logger.info(f"[PlanGenerator] Multi-step plan generated: {len(steps)} steps")
         return plan
-
-    def _sanitize_id(self, text: str) -> str:
-        """
-        Sanitize text for use in IDs.
-
-        Args:
-            text: Text to sanitize
-
-        Returns:
-            Sanitized text (lowercase, no spaces/special chars)
-        """
-        if not text:
-            return "unknown"
-        # Convert to lowercase, replace spaces with underscores, remove special chars
-        sanitized = text.lower().replace(" ", "_").replace(".", "")
-        # Keep only alphanumeric and underscores
-        sanitized = "".join(c if c.isalnum() or c == "_" else "" for c in sanitized)
-        return sanitized[:50]  # Limit length
-
-    def get_plan_summary(self, plan: ExecutionPlan) -> str:
-        """
-        Get human-readable summary of plan.
-
-        Args:
-            plan: ExecutionPlan
-
-        Returns:
-            Summary string
-        """
-        if not plan:
-            return "No plan generated"
-
-        # Get metadata from first step if available
-        metadata = {}
-        if plan.steps and plan.steps[0].metadata:
-            metadata = plan.steps[0].metadata
-        else:
-            # Fallback: extract from plan fields
-            metadata = {
-                "platform": "linkedin",
-                "job_title": "Unknown",
-                "company_name": "Unknown",
-                "workflow_type": plan.workflow_type,
-            }
-
-        lines = [
-            f"Platform: {metadata.get('platform', 'unknown')}",
-            f"Job: {metadata.get('job_title', 'Unknown')}",
-            f"Company: {metadata.get('company_name', 'Unknown')}",
-            f"Workflow: {metadata.get('workflow_type', 'Unknown')}",
-            f"",
-            f"Generated Plan ({len(plan.steps)} steps):",
-        ]
-
-        for step in plan.steps:
-            lines.append(f"  {step.step_number}. {step.action.value}")
-
-        lines.append(f"")
-        lines.append(f"Estimated duration: {plan.total_estimated_duration}s")
-        lines.append(f"Confidence score: {plan.confidence_score}")
-
-        return "\n".join(lines)

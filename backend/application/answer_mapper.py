@@ -69,13 +69,32 @@ class AnswerMapper:
 
         Args:
             category: QuestionCategory
-            field_type: Field type (text, select, radio, checkbox)
+            field_type: Field type (text, select, radio, checkbox, number)
             options: Available options for radio/select fields
 
         Returns:
             Formatted answer value
         """
         answer = self.get_answer(category)
+
+        # For number inputs, extract first number from range answers like "5-10"
+        if field_type == "number":
+            # Handle range answers like "5-10" by extracting first number
+            if "-" in answer and not answer.startswith("-"):
+                # Split on dash and take first number
+                parts = answer.split("-")
+                if parts[0].strip().isdigit():
+                    return parts[0].strip()
+            # If already a valid number, return as-is
+            if answer.isdigit():
+                return answer
+            # Fallback: try to extract any digits
+            import re
+            match = re.search(r'\d+', answer)
+            if match:
+                return match.group(0)
+            # Last resort: return "0"
+            return "0"
 
         # For radio buttons, map answer to actual option value
         if field_type == "radio" and options:

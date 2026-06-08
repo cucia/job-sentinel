@@ -308,7 +308,14 @@ def test_metadata_preservation():
         for step in steps:
             assert step.metadata, f"Step {step.step_number} should have metadata"
             assert step.metadata.get("platform") == "linkedin", "Should preserve platform"
+
+            # Skip question-specific metadata validation for CONTINUE steps
+            if step.action == ExecutionAction.CONTINUE_TO_NEXT_STEP:
+                continue
+
             assert "question_category" in step.metadata, "Should have question_category"
+            assert "question_type" in step.metadata, "Should have question_type"
+            assert "original_text" in step.metadata, "Should have original_text"
 
         print(f"\n✓ All metadata preserved correctly")
 

@@ -167,6 +167,15 @@ class ActionExecutor:
             )
 
         try:
+            # Debug logging for Step 6
+            if step.step_number == 6:
+                log(f"[ActionExecutor] DEBUG Step 6:")
+                log(f"  selector: {step.selector}")
+                log(f"  field_name: {step.field_name}")
+                log(f"  expected_value: {step.expected_value}")
+                log(f"  value_source: {step.value_source}")
+                log(f"  metadata: {step.metadata}")
+
             # Find element
             element = await self.adapter.find_element(step.selector)
             if not element:
@@ -177,6 +186,52 @@ class ActionExecutor:
                     message=f"Element not found: {step.selector}",
                     metadata={"selector": step.selector},
                 )
+
+            # Debug: Capture element state for Step 6
+            if step.step_number == 6:
+                try:
+                    # Access the underlying Playwright locator
+                    locator = element.locator
+
+                    # Get element count
+                    count = await locator.count()
+                    log(f"[ActionExecutor] Step 6 Element Diagnostics:")
+                    log(f"  count: {count}")
+
+                    # If multiple elements, log all
+                    if count > 1:
+                        log(f"  WARNING: Multiple elements match selector!")
+                        for i in range(count):
+                            nth_locator = locator.nth(i)
+                            html = await nth_locator.evaluate("el => el.outerHTML")
+                            log(f"  element[{i}] outerHTML: {html}")
+
+                    # Get first element details
+                    is_visible = await locator.is_visible()
+                    is_enabled = await locator.is_enabled()
+                    bounding_box = await locator.bounding_box()
+                    outer_html = await locator.evaluate("el => el.outerHTML")
+
+                    log(f"  is_visible (before scroll): {is_visible}")
+                    log(f"  is_enabled: {is_enabled}")
+                    log(f"  bounding_box: {bounding_box}")
+                    log(f"  outerHTML: {outer_html}")
+
+                    # Try scrolling into view
+                    log(f"  Attempting scroll into view...")
+                    await locator.scroll_into_view_if_needed()
+
+                    # Check visibility after scroll
+                    is_visible_after = await locator.is_visible()
+                    bounding_box_after = await locator.bounding_box()
+                    log(f"  is_visible (after scroll): {is_visible_after}")
+                    log(f"  bounding_box (after scroll): {bounding_box_after}")
+
+                    # Capture screenshot
+                    await self.adapter.screenshot("step6_before_fill.png")
+                    log(f"  screenshot: step6_before_fill.png")
+                except Exception as e:
+                    log(f"[ActionExecutor] Could not capture Step 6 debug info: {e}")
 
             # Get value
             value = step.expected_value or ""
@@ -565,10 +620,16 @@ class ActionExecutor:
         if step.expected_value:
             return step.expected_value
 
+        # For resume uploads, resolve from session profile
+        if step.value_source == "profile.resume_path":
+            if hasattr(session, 'profile') and hasattr(session.profile, 'resume_path'):
+                return session.profile.resume_path
+            return ""
+
         # Check metadata for value hints
-        metadata_value = step.metadata.get("value")
+        metadata_value = step.metadata.get("value") if step.metadata else None
         if metadata_value:
             return metadata_value
 
-        # Fallback to placeholder
-        return f"[Value for {step.field_name}]"
+        # No value found - return empty string (not placeholder)
+        return ""

@@ -68,15 +68,12 @@ class PlaywrightBrowserElement(BrowserElement):
     async def fill(self, value: str) -> BrowserResult:
         """Fill element with value."""
         try:
-            if not await self.locator.is_visible():
-                return BrowserResult(
-                    success=False,
-                    action="fill",
-                    selector=self.selector,
-                    message="Element not visible",
-                )
+            # Note: We skip visibility check to support multi-step forms where
+            # fields may be hidden via CSS (display: none) but still fillable.
+            # Playwright can fill hidden fields programmatically with force: True.
+            # For user interaction simulation, consider using force: True option.
 
-            await self.locator.fill(value)
+            await self.locator.fill(value, force=True)
             self._attributes["value"] = value
 
             return BrowserResult(
@@ -125,17 +122,11 @@ class PlaywrightBrowserElement(BrowserElement):
     async def select_option(self, value: str) -> "BrowserResult":
         """Select option in a <select> element."""
         try:
-            # Check if element is visible
-            if not await self.locator.is_visible():
-                return BrowserResult(
-                    success=False,
-                    action="select_option",
-                    selector=self.selector,
-                    message="Element not visible",
-                )
+            # Note: Skip visibility check for multi-step forms where select elements
+            # may be hidden. Use force: True to bypass Playwright's visibility checks.
 
             # Use Playwright's select_option() for <select> elements
-            await self.locator.select_option(value)
+            await self.locator.select_option(value, force=True)
 
             return BrowserResult(
                 success=True,
@@ -222,13 +213,9 @@ class PlaywrightBrowserElement(BrowserElement):
                     message=f"File not found: {file_path}",
                 )
 
-            if not await self.locator.is_visible():
-                return BrowserResult(
-                    success=False,
-                    action="upload_file",
-                    selector=self.selector,
-                    message="Element not visible",
-                )
+            # Note: File inputs don't need to be visible for set_input_files() to work.
+            # Playwright can set files on hidden file inputs, so we skip visibility check.
+            # This is different from click() or fill() which require visibility.
 
             # Use Playwright's set_input_files() for file uploads
             await self.locator.set_input_files(file_path)

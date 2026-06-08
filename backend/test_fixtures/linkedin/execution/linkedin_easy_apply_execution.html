@@ -1,0 +1,226 @@
+<html>
+<head>
+    <title>Security Analyst - LinkedIn Easy Apply</title>
+    <style>
+        * { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .job-header { margin-bottom: 30px; }
+        .job-title { font-size: 32px; font-weight: bold; color: #0a66c2; margin: 0; }
+        .company { font-size: 20px; color: #666; margin: 10px 0; }
+        .meta { display: flex; gap: 30px; color: #666; font-size: 14px; margin-top: 15px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 24px; cursor: pointer; font-size: 16px; font-weight: 600; margin-top: 20px; }
+        .btn-apply { background: #0a66c2; color: white; }
+        .btn-apply:hover { background: #054399; }
+        .form-section { margin-top: 40px; padding: 20px; background: #f9f9f9; border-radius: 8px; }
+        .form-section h3 { color: #0a66c2; margin-top: 0; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 500; color: #333; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .form-group textarea { resize: vertical; min-height: 120px; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #0a66c2;
+            box-shadow: 0 0 0 3px rgba(10, 102, 194, 0.1);
+        }
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .notice { background: #dbeafe; border-left: 4px solid #0a66c2; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+        .button-group { display: flex; gap: 10px; margin-top: 30px; }
+        .btn-submit { background: #0a66c2; color: white; }
+        .btn-submit:hover { background: #054399; }
+        .btn-back { background: #e1e1e1; color: #333; }
+        .btn-back:hover { background: #d0d0d0; }
+        .success-page { display: none; text-align: center; padding: 60px 20px; }
+        .success-page.show { display: block; }
+        .success-icon { font-size: 80px; margin-bottom: 20px; }
+        .success-page h1 { color: #0a66c2; font-size: 32px; margin: 20px 0; }
+        .success-page p { color: #666; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container" id="application-form">
+        <div class="job-header">
+            <h1 class="job-title">Security Analyst</h1>
+            <div class="company">Example Corp</div>
+            <div class="meta">
+                <span>📍 Bangalore, India</span>
+                <span>💼 Full-time</span>
+                <span>📊 Mid-Level</span>
+            </div>
+            <p style="color: #666; margin-top: 20px;">Protect and enhance our security posture through analysis, testing, and implementation of security best practices.</p>
+        </div>
+
+        <div class="notice">
+            <strong>Easy Apply:</strong> This position uses Easy Apply. Your profile information will be sent to the hiring team.
+        </div>
+
+        <!-- Step 1: Personal Information -->
+        <div class="form-section" id="step-1">
+            <h3>Step 1: Your Information</h3>
+            <div class="two-column">
+                <div class="form-group">
+                    <label for="first_name">First Name *</label>
+                    <input type="text" id="first_name" name="first_name" required />
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name *</label>
+                    <input type="text" id="last_name" name="last_name" required />
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="email">Email Address *</label>
+                <input type="email" id="email" name="email" required />
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone Number *</label>
+                <input type="tel" id="phone" name="phone" required />
+            </div>
+        </div>
+
+        <!-- Step 2: Work Authorization -->
+        <div class="form-section" id="step-2">
+            <h3>Step 2: Work Authorization</h3>
+            <div class="form-group">
+                <label for="work_auth">Are you authorized to work in India? *</label>
+                <select id="work_auth" name="work_authorization" required>
+                    <option value="">Select...</option>
+                    <option value="yes">Yes, I am authorized</option>
+                    <option value="no">No, I require sponsorship</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="sponsorship">Will you require visa sponsorship? *</label>
+                <select id="sponsorship" name="sponsorship" required>
+                    <option value="">Select...</option>
+                    <option value="yes">Yes, I will require sponsorship</option>
+                    <option value="no">No, I don't require sponsorship</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Step 3: Experience -->
+        <div class="form-section" id="step-3">
+            <h3>Step 3: Experience</h3>
+            <div class="form-group">
+                <label for="experience">Years of Security Experience *</label>
+                <input type="number" id="experience" name="experience" min="0" required />
+            </div>
+            <div class="form-group">
+                <label for="notice_period">Notice Period *</label>
+                <select id="notice_period" name="notice_period" required>
+                    <option value="">Select...</option>
+                    <option value="immediate">Immediate</option>
+                    <option value="2weeks">2 weeks</option>
+                    <option value="4weeks">4 weeks</option>
+                    <option value="8weeks">8 weeks or more</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Step 4: Resume Upload -->
+        <div class="form-section" id="step-4">
+            <h3>Step 4: Resume</h3>
+            <div class="form-group">
+                <label for="resume">Upload Resume (PDF, DOC, DOCX) *</label>
+                <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" required />
+            </div>
+            <div class="form-group">
+                <label for="cover_letter">Cover Letter (Optional)</label>
+                <textarea id="cover_letter" name="cover_letter" placeholder="Tell us why you're interested in this role..."></textarea>
+            </div>
+        </div>
+
+        <!-- Step 5: Review -->
+        <div class="form-section" id="step-5">
+            <h3>Step 5: Review Your Application</h3>
+            <div id="review-summary" style="background: white; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                <p><strong>Name:</strong> <span id="review-name">-</span></p>
+                <p><strong>Email:</strong> <span id="review-email">-</span></p>
+                <p><strong>Work Authorization:</strong> <span id="review-auth">-</span></p>
+                <p><strong>Experience:</strong> <span id="review-exp">-</span> years</p>
+            </div>
+            <p style="color: #666; font-size: 14px;">By clicking Submit, you agree to send your application to this employer.</p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="button-group">
+            <button class="btn btn-back" onclick="previousStep()">← Back</button>
+            <button class="btn btn-apply" onclick="nextStep()">Continue →</button>
+            <button class="btn btn-submit" id="submit-btn" onclick="submitApplication()" style="display: none;">Submit Application</button>
+        </div>
+    </div>
+
+    <!-- Success Page -->
+    <div class="container success-page" id="success-page">
+        <div class="success-icon">✅</div>
+        <h1>Application Submitted!</h1>
+        <p>Your application has been successfully sent to Example Corp.</p>
+        <p style="color: #999; margin-top: 20px;">You will receive updates about your application status via email.</p>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 5;
+
+        function showStep(step) {
+            for (let i = 1; i <= totalSteps; i++) {
+                const element = document.getElementById(`step-${i}`);
+                if (element) {
+                    element.style.display = i === step ? 'block' : 'none';
+                }
+            }
+
+            document.getElementById('submit-btn').style.display = step === totalSteps ? 'block' : 'none';
+            const continueBtn = document.querySelector('.btn-apply');
+            if (continueBtn) {
+                continueBtn.style.display = step === totalSteps ? 'none' : 'block';
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                currentStep++;
+                if (currentStep === totalSteps) {
+                    updateReviewSummary();
+                }
+                showStep(currentStep);
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
+
+        function updateReviewSummary() {
+            document.getElementById('review-name').textContent =
+                (document.getElementById('first_name').value || 'John') + ' ' +
+                (document.getElementById('last_name').value || 'Doe');
+            document.getElementById('review-email').textContent =
+                document.getElementById('email').value || 'john@example.com';
+            document.getElementById('review-auth').textContent =
+                document.getElementById('work_auth').value || 'Not selected';
+            document.getElementById('review-exp').textContent =
+                document.getElementById('experience').value || '0';
+        }
+
+        function submitApplication() {
+            document.getElementById('application-form').style.display = 'none';
+            document.getElementById('success-page').classList.add('show');
+        }
+
+        // Initialize
+        showStep(1);
+    </script>
+</body>
+</html>

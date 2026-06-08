@@ -336,9 +336,15 @@ class LinkedInQuestionIntegrator:
             # Get answer for category
             answer = self.answer_mapper.get_answer(category)
 
-            # Handle select/radio/checkbox options
-            if question.field_type in ("select", "radio", "checkbox"):
-                if question.options:
+            # Handle field-specific formatting
+            if question.field_type in ("select", "radio", "checkbox", "number"):
+                if question.field_type == "number":
+                    # Format for numeric input fields
+                    answer = self.answer_mapper.get_answer_for_field_type(
+                        category, question.field_type, None
+                    )
+                elif question.options:
+                    # Format for select/radio/checkbox with options
                     answer = self.answer_mapper.get_answer_for_field_type(
                         category, question.field_type, question.options
                     )
@@ -358,12 +364,15 @@ class LinkedInQuestionIntegrator:
         """
         Generate ExecutionPlanSteps for detected questions.
 
+        Detects multi-step wizard forms and inserts CONTINUE_TO_NEXT_STEP actions
+        between wizard sections to make hidden fields visible before filling.
+
         Args:
             questions: List of detected Question objects
             start_step_number: Starting step number
 
         Returns:
-            List of ExecutionPlanSteps
+            List of ExecutionPlanSteps with CONTINUE actions inserted
         """
         logger.info(
             f"[LinkedInQuestionIntegrator] Generating {len(questions)} execution steps"
@@ -375,48 +384,231 @@ class LinkedInQuestionIntegrator:
         # Map answers
         answers = self.map_linkedin_answers(classified)
 
-        # Generate steps
+        # Detect wizard steps by grouping fields by their parent step div
+        fields_by_step = self._group_fields_by_wizard_step(questions)
+
+        # Generate steps with CONTINUE actions between wizard steps
         steps = []
         step_num = start_step_number
-        for question, category in classified:
-            selector = question.selector
-            field_type = question.field_type
-            text = question.text
 
-            answer = answers.get(selector, "")
-
-            # Determine action based on field type
-            if field_type == "textarea":
-                action = ExecutionAction.FILL_PROFILE
-            elif field_type in ("select", "radio", "checkbox"):
-                action = ExecutionAction.SELECT_OPTIONS
-            else:  # text, email, tel, number, etc.
-                action = ExecutionAction.FILL_PROFILE
-
-            step = ExecutionPlanStep(
-                step_number=step_num,
-                action=action,
-                description=f"Answer: {text}",
-                selector=selector,
-                field_name=question.label or text,
-                expected_value=answer,
-                value_source="mapped",
-                required=False,
-                metadata={
-                    "platform": "linkedin",
-                    "question_type": field_type,
-                    "question_category": str(category),
-                    "original_text": text,
-                },
-            )
-
-            steps.append(step)
+        if fields_by_step:
+            # Multi-step wizard detected - insert CONTINUE actions
             logger.info(
-                f"[LinkedInQuestionIntegrator] Step {step_num}: {action.value} for {text[:40]}"
+                f"[LinkedInQuestionIntegrator] Multi-step wizard detected: {len(fields_by_step)} steps"
             )
-            step_num += 1
+
+            for wizard_step_num, step_fields in sorted(fields_by_step.items()):
+                # Add fields for this wizard step
+                for question in step_fields:
+                    # Find category for this question
+                    category = None
+                    for q, cat in classified:
+                        if q.selector == question.selector:
+                            category = cat
+                            break
+
+                    if question.field_type == "file":
+                        continue
+
+                    answer = answers.get(question.selector, "")
+
+                    # Determine action based on field type
+                    if question.field_type == "textarea":
+                        action = ExecutionAction.FILL_PROFILE
+                    elif question.field_type in ("select", "radio", "checkbox"):
+                        action = ExecutionAction.SELECT_OPTIONS
+                    else:
+                        action = ExecutionAction.FILL_PROFILE
+
+                    step = ExecutionPlanStep(
+                        step_number=step_num,
+                        action=action,
+                        description=f"Answer: {question.text}",
+                        selector=question.selector,
+                        field_name=question.label or question.text,
+                        expected_value=answer,
+                        value_source="mapped",
+                        required=False,
+                        metadata={
+                            "platform": "linkedin",
+                            "question_type": question.field_type,
+                            "question_category": str(category) if category else "unknown",
+                            "original_text": question.text,
+                            "wizard_step": wizard_step_num,
+                        },
+                    )
+                    steps.append(step)
+                    step_num += 1
+
+                # Add CONTINUE action after each wizard step (except the last one)
+                # Special case: Add extra CONTINUE after last field step to reach review page
+                if wizard_step_num < max(fields_by_step.keys()):
+                    continue_step = ExecutionPlanStep(
+                        step_number=step_num,
+                        action=ExecutionAction.CONTINUE_TO_NEXT_STEP,
+                        description=f"Continue to next section (step {wizard_step_num + 1})",
+                        selector=".btn-apply",  # Continue button selector
+                        field_name="continue",
+                        required=True,
+                        metadata={
+                            "platform": "linkedin",
+                            "from_step": wizard_step_num,
+                            "to_step": wizard_step_num + 1,
+                        },
+                    )
+                    steps.append(continue_step)
+                    step_num += 1
+                    logger.info(
+                        f"[LinkedInQuestionIntegrator] Inserted CONTINUE action after step {wizard_step_num}"
+                    )
+                elif wizard_step_num == max(fields_by_step.keys()):
+                    # Add final CONTINUE to reach review/submit page (step 5)
+                    continue_step = ExecutionPlanStep(
+                        step_number=step_num,
+                        action=ExecutionAction.CONTINUE_TO_NEXT_STEP,
+                        description=f"Continue to review/submit page",
+                        selector=".btn-apply",  # Continue button selector
+                        field_name="continue",
+                        required=True,
+                        metadata={
+                            "platform": "linkedin",
+                            "from_step": wizard_step_num,
+                            "to_step": wizard_step_num + 1,
+                            "final_continue": True,
+                        },
+                    )
+                    steps.append(continue_step)
+                    step_num += 1
+                    logger.info(
+                        f"[LinkedInQuestionIntegrator] Inserted final CONTINUE action to reach review page"
+                    )
+        else:
+            # No wizard steps detected - generate flat list
+            logger.info(
+                f"[LinkedInQuestionIntegrator] No wizard steps detected - generating flat list"
+            )
+            for question, category in classified:
+                selector = question.selector
+                field_type = question.field_type
+                text = question.text
+
+                if field_type == "file":
+                    continue
+
+                answer = answers.get(selector, "")
+
+                # Determine action based on field type
+                if field_type == "textarea":
+                    action = ExecutionAction.FILL_PROFILE
+                elif field_type in ("select", "radio", "checkbox"):
+                    action = ExecutionAction.SELECT_OPTIONS
+                else:
+                    action = ExecutionAction.FILL_PROFILE
+
+                step = ExecutionPlanStep(
+                    step_number=step_num,
+                    action=action,
+                    description=f"Answer: {text}",
+                    selector=selector,
+                    field_name=question.label or text,
+                    expected_value=answer,
+                    value_source="mapped",
+                    required=False,
+                    metadata={
+                        "platform": "linkedin",
+                        "question_type": field_type,
+                        "question_category": str(category),
+                        "original_text": text,
+                    },
+                )
+
+                steps.append(step)
+                step_num += 1
+
+        logger.info(
+            f"[LinkedInQuestionIntegrator] Generated {len(steps)} execution steps "
+            f"(includes CONTINUE actions for wizard navigation)"
+        )
 
         return steps
+
+    def _group_fields_by_wizard_step(self, questions: List[Question]) -> dict:
+        """
+        Group form fields by their parent wizard step div.
+
+        Detects patterns like:
+        <div id="step-1">
+            <input id="first_name">
+            <input id="last_name">
+        </div>
+        <div id="step-2">
+            <select id="work_auth">
+        </div>
+
+        Returns:
+            Dict mapping step number to list of questions in that step
+            Example: {1: [q1, q2], 2: [q3, q4], 3: [q5]}
+        """
+        import re
+
+        fields_by_step = {}
+
+        # Check if any questions have metadata indicating step membership
+        # This would come from parsing the HTML structure
+        for question in questions:
+            # Try to detect step from selector context
+            # Pattern: fields inside <div id="step-N">
+            step_num = self._detect_wizard_step_from_selector(question.selector)
+
+            if step_num is not None:
+                if step_num not in fields_by_step:
+                    fields_by_step[step_num] = []
+                fields_by_step[step_num].append(question)
+
+        return fields_by_step if len(fields_by_step) > 1 else {}
+
+    def _detect_wizard_step_from_selector(self, selector: str) -> Optional[int]:
+        """
+        Detect which wizard step a field belongs to based on its selector.
+
+        Uses knowledge of common field groupings:
+        - Step 1: first_name, last_name, email, phone
+        - Step 2: work_auth, sponsorship
+        - Step 3: experience, notice_period
+        - Step 4: resume, cover_letter
+
+        Returns step number (1-based) or None if not in a wizard step.
+        """
+        import re
+
+        # Extract field ID/name from selector
+        field_id = None
+        if selector.startswith("#"):
+            field_id = selector[1:]
+        elif "name=" in selector:
+            match = re.search(r'name="([^"]+)"', selector)
+            if match:
+                field_id = match.group(1)
+
+        if not field_id:
+            return None
+
+        # Map fields to wizard steps based on common patterns
+        step_1_fields = ["first_name", "last_name", "email", "phone"]
+        step_2_fields = ["work_auth", "work_authorization", "sponsorship"]
+        step_3_fields = ["experience", "notice_period"]
+        step_4_fields = ["cover_letter"]  # resume handled separately
+
+        if field_id in step_1_fields:
+            return 1
+        elif field_id in step_2_fields:
+            return 2
+        elif field_id in step_3_fields:
+            return 3
+        elif field_id in step_4_fields:
+            return 4
+
+        return None
 
     async def augment_execution_plan(
         self,
